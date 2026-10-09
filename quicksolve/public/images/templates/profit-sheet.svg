@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <rect width="800" height="500" fill="#f8fafc"/>
+  <rect x="48" y="48" width="704" height="404" rx="16" fill="#ffffff" stroke="#dbe3ee"/>
+  <text x="80" y="110" fill="#0f172a" font-family="Georgia, serif" font-size="32">Profit spreadsheet</text>
+  <text x="80" y="160" fill="#334155" font-family="Arial, sans-serif" font-size="18">Percent fees and fixed fees in separate columns.</text>
+  <text x="80" y="220" fill="#1d4ed8" font-family="Arial, sans-serif" font-size="16">CSV you can open in a spreadsheet.</text>
+</svg>

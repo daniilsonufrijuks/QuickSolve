@@ -1,0 +1,11 @@
+Date,Type,Category,Description,Amount EUR,Notes
+2026-01-05,Income,Sales,Example weekend market,240.00,Replace this row with your own records
+2026-01-06,Expense,Materials,Example packaging order,36.50,Keep receipts with the reference in Notes
+2026-01-12,Expense,Fees,Example card processing,7.20,Record the fee separately from the sale
+2026-01-18,Income,Sales,Example online order,89.00,One row per payment you actually receive
+2026-01-20,Expense,Software,Example tool subscription,9.00,Monthly tools belong here
+,,,,,
+Instructions,,,,,
+"Use one row per money movement. Income increases the running total. Expenses decrease it.",,,,,
+"Do not treat the example rows as your accounts. Delete them after you understand the columns.",,,,,
+"This file does not connect to a bank and it does not file taxes.",,,,,

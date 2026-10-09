@@ -1,0 +1,34 @@
+<script setup lang="ts">
+import Pagination from '@/components/marketing/Pagination.vue';
+import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { Head, router } from '@inertiajs/vue3';
+
+defineProps<{
+    documents: { data: Array<{ id: number; title: string; created_at: string }>; meta: { current_page: number; last_page: number } };
+}>();
+
+function remove(id: number) {
+    router.delete(`/invoices/${id}`, { preserveScroll: true });
+}
+</script>
+
+<template>
+    <Head title="Documents" />
+    <AppLayout :breadcrumbs="[{ title: 'Documents', href: '/dashboard/documents' }]">
+        <div class="space-y-4 p-4">
+            <h1 class="text-2xl font-semibold">Saved invoices</h1>
+            <ul class="divide-y rounded-xl border">
+                <li v-for="document in documents.data" :key="document.id" class="flex items-center justify-between gap-3 p-3 text-sm">
+                    <span>{{ document.title }}</span>
+                    <span class="flex gap-2">
+                        <Button as-child variant="outline"><a :href="`/invoices/${document.id}/file`">PDF</a></Button>
+                        <Button variant="ghost" type="button" @click="remove(document.id)">Delete</Button>
+                    </span>
+                </li>
+            </ul>
+            <p v-if="documents.data.length === 0" class="text-sm text-slate-500">Save an invoice from the generator to see it here.</p>
+            <Pagination :meta="documents.meta" path="/dashboard/documents" />
+        </div>
+    </AppLayout>
+</template>
