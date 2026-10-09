@@ -98,6 +98,57 @@ class DatabaseSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'slug' => 'discount-calculator',
+                'category' => 'calculators',
+                'name' => 'Discount Calculator',
+                'description' => 'Work out a sale price, the amount saved, and the real discount when more than one reduction applies.',
+                'icon' => 'percent',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 22,
+                'long_description' => 'Enter an original price and a first discount, either a percentage of that price or a fixed amount taken off once. Extra discounts are percentages of the price that remains, so 20% followed by 10% is not the same as 30% off. The effective discount compares the final sale price with the original price.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Why is 20% then 10% not 30% off?', 'a' => 'The second percentage is calculated on the reduced price. On €100, 20% leaves €80, and 10% of €80 is €8, so the sale price is €72.'],
+                        ['q' => 'Does this apply the discount at a store?', 'a' => 'No. It only calculates the figures. It does not change a listing or complete a purchase.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'freelance-rate-calculator',
+                'category' => 'calculators',
+                'name' => 'Freelance Rate Calculator',
+                'description' => 'Estimate the hourly or daily rate that covers an income target, expenses, billable hours, and unpaid leave.',
+                'icon' => 'clock',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 18,
+                'long_description' => 'The income target is the amount you want left after business expenses. Required revenue adds those expenses back in. Available days are your working weeks times days per week, minus unpaid leave. The hourly rate divides required revenue by billable hours. The daily rate divides it by available days. Pro and Business accounts can download that result as a plain-text report. The report is an estimate, not tax or accounting advice.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'What counts as unpaid leave?', 'a' => 'Days you planned to work but will not bill. They come out of the available days before the rate is calculated.'],
+                        ['q' => 'Who can download the rate report?', 'a' => 'Pro and Business subscribers. The calculator itself stays free. The Freelance Business Starter Kit is a separate one-time file.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'qr-code-generator',
+                'category' => 'converters',
+                'name' => 'QR Code Generator',
+                'description' => 'Create a QR code for a URL, Wi-Fi network, contact card, or short piece of text, then download PNG or SVG.',
+                'icon' => 'qr-code',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 16,
+                'long_description' => 'The code is drawn in your browser. A Wi-Fi password is not sent to QuickSolve. Free codes are black on white. Pro and Business can choose foreground and background colors. PNG and SVG downloads use the same content. This does not host the destination page or join a Wi-Fi network for you.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is a Wi-Fi password stored?', 'a' => 'No. The password is used only in your browser to build the code.'],
+                        ['q' => 'What is included with branding?', 'a' => 'Custom foreground and background colors. Free codes stay black on white. A logo is not added to the code.'],
+                    ],
+                ],
+            ],
         ];
 
         foreach ($tools as $tool) {

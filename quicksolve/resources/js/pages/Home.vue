@@ -23,7 +23,7 @@ function search() {
 
 const faqs = [
     ['Do I need an account to use the calculators?', 'No. The profit calculator and the invoice PDF work without an account. Saving invoices and buying templates requires a login.'],
-    ['When is a description a live AI response?', 'Only when an API key is configured on the server and the request succeeds. Otherwise the page stays in demo mode and says so.'],
+    ['When is a description a live DeepSeek response?', 'Only when a DeepSeek API key is configured on the server and the request succeeds. Otherwise the page stays in demo mode and says so.'],
     ['Does a checkout redirect activate Pro?', 'No. Pro and Business stay inactive until Stripe confirms the subscription through a verified webhook.'],
 ];
 </script>

@@ -53,7 +53,8 @@ async function submit() {
 <template>
     <div class="grid gap-6 lg:grid-cols-2">
         <form class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" @submit.prevent="submit">
-            <p v-if="demoMode" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Demo mode is on because no AI provider key is configured. Results are assembled from your inputs and labeled as a demo.</p>
+            <p v-if="demoMode" class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-950">Demo mode is on because no DeepSeek API key is configured. Results are assembled from your inputs and labeled as a demo.</p>
+            <p v-else class="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-950">Requests are sent to DeepSeek on the server. A failed request stays an error and is not replaced with demo text.</p>
             <p v-if="usage" class="text-sm text-slate-600">{{ usage.remaining }} of {{ usage.limit }} generations left this {{ usage.window }}.</p>
             <FormField label="Product name"><input v-model="form.product_name" required class="w-full rounded-lg border px-3 py-2" /></FormField>
             <FormField label="Product category"><input v-model="form.product_category" required class="w-full rounded-lg border px-3 py-2" /></FormField>

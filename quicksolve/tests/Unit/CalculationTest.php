@@ -1,7 +1,10 @@
 <?php
 
+use App\Services\Calculators\DiscountCalculator;
+use App\Services\Calculators\FreelanceRateCalculator;
 use App\Services\Calculators\InvoiceCalculator;
 use App\Services\Calculators\ProfitCalculator;
+use App\Services\Qr\QrContent;
 
 test('profit calculator separates percentage and fixed fees', function () {
     $result = (new ProfitCalculator)->calculate([
@@ -56,4 +59,69 @@ test('invoice totals apply one tax rate to the subtotal', function () {
     expect($result['subtotal'])->toBe('20.00')
         ->and($result['tax'])->toBe('4.00')
         ->and($result['total'])->toBe('24.00');
+});
+
+test('successive discounts apply to the remaining price', function () {
+    $result = (new DiscountCalculator)->calculate([
+        'original_price' => '100.00',
+        'discount_type' => 'percent',
+        'discount_percent' => '20',
+        'successive_percents' => ['10'],
+        'currency' => 'EUR',
+    ]);
+
+    expect($result['sale_price'])->toBe('72.00')
+        ->and($result['savings'])->toBe('28.00')
+        ->and($result['effective_discount'])->toBe('28.00');
+});
+
+test('a fixed discount is removed before a later percentage', function () {
+    $result = (new DiscountCalculator)->calculate([
+        'original_price' => '50.00',
+        'discount_type' => 'amount',
+        'discount_amount' => '10.00',
+        'successive_percents' => ['25'],
+    ]);
+
+    expect($result['sale_price'])->toBe('30.00')
+        ->and($result['effective_discount'])->toBe('40.00');
+});
+
+test('freelance rates cover the income target plus expenses', function () {
+    $result = (new FreelanceRateCalculator)->calculate([
+        'income_target' => '60000.00',
+        'annual_expenses' => '6000.00',
+        'hours_per_day' => '5',
+        'days_per_week' => 5,
+        'weeks_per_year' => 48,
+        'unpaid_leave_days' => 10,
+        'currency' => 'EUR',
+    ]);
+
+    expect($result['available_days'])->toBe(230)
+        ->and($result['required_revenue'])->toBe('66000.00')
+        ->and($result['hourly_rate'])->toBe('57.39')
+        ->and($result['daily_rate'])->toBe('286.96');
+});
+
+test('freelance rates reject leave that removes every working day', function () {
+    expect(fn () => (new FreelanceRateCalculator)->calculate([
+        'income_target' => '1000.00',
+        'hours_per_day' => '5',
+        'days_per_week' => 5,
+        'weeks_per_year' => 1,
+        'unpaid_leave_days' => 5,
+    ]))->toThrow(InvalidArgumentException::class);
+});
+
+test('qr content builds a wifi payload without dropping escaped characters', function () {
+    $payload = (new QrContent)->payload([
+        'type' => 'wifi',
+        'wifi_ssid' => 'Cafe:Net',
+        'wifi_password' => 'p@ss;word',
+        'wifi_security' => 'WPA',
+        'wifi_hidden' => false,
+    ]);
+
+    expect($payload)->toBe('WIFI:T:WPA;S:Cafe\\:Net;P:p@ss\\;word;H:false;;');
 });

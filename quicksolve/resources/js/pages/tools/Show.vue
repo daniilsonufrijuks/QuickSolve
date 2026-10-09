@@ -3,8 +3,11 @@ import EmptyState from '@/components/marketing/EmptyState.vue';
 import PriceBadge from '@/components/marketing/PriceBadge.vue';
 import ToolCard from '@/components/marketing/ToolCard.vue';
 import DescriptionGenerator from '@/components/tools/DescriptionGenerator.vue';
+import DiscountCalculator from '@/components/tools/DiscountCalculator.vue';
+import FreelanceRateCalculator from '@/components/tools/FreelanceRateCalculator.vue';
 import InvoiceGenerator from '@/components/tools/InvoiceGenerator.vue';
 import ProfitCalculator from '@/components/tools/ProfitCalculator.vue';
+import QrCodeGenerator from '@/components/tools/QrCodeGenerator.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -23,6 +26,7 @@ defineProps<{
     locked: boolean;
     usage: { used: number; limit: number; remaining: number; window: string; plan: string } | null;
     demoMode: boolean;
+    premium: boolean;
 }>();
 </script>
 
@@ -32,7 +36,7 @@ defineProps<{
     </Head>
     <MarketingLayout>
         <article class="mx-auto max-w-6xl px-4 py-12">
-            <nav class="text-sm text-slate-500" aria-label="Breadcrumb">
+            <nav class="text-sm" aria-label="Breadcrumb">
                 <Link href="/">Home</Link>
                 <span aria-hidden="true"> / </span>
                 <Link href="/tools">Tools</Link>
@@ -44,7 +48,7 @@ defineProps<{
                 <PriceBadge :access="tool.access_type" />
             </div>
             <h1 class="mt-2 text-3xl font-semibold">{{ tool.name }}</h1>
-            <p class="mt-3 max-w-3xl text-lg leading-8 text-slate-600">{{ tool.description }}</p>
+            <p class="mt-3 max-w-3xl text-lg leading-8">{{ tool.description }}</p>
 
             <div v-if="locked" class="mt-8">
                 <EmptyState title="This tool is included with Pro" message="Premium tools stay locked until a verified subscription is active on the account. Opening this page does not grant access." />
@@ -54,6 +58,9 @@ defineProps<{
                 <ProfitCalculator v-if="tool.slug === 'profit-margin-calculator'" />
                 <DescriptionGenerator v-else-if="tool.slug === 'product-description-generator'" :usage="usage" :demo-mode="demoMode" />
                 <InvoiceGenerator v-else-if="tool.slug === 'invoice-generator'" />
+                <DiscountCalculator v-else-if="tool.slug === 'discount-calculator'" />
+                <FreelanceRateCalculator v-else-if="tool.slug === 'freelance-rate-calculator'" :premium="premium" />
+                <QrCodeGenerator v-else-if="tool.slug === 'qr-code-generator'" :branding="premium" />
             </div>
 
             <section class="prose mt-12 max-w-3xl">

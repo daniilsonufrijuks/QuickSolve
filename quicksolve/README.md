@@ -119,12 +119,13 @@ Put the signing secret Stripe CLI prints into `STRIPE_WEBHOOK_SECRET`. Webhook r
 ## AI descriptions
 
 ```env
+AI_PROVIDER=deepseek
 AI_PROVIDER_API_KEY=
-AI_PROVIDER_BASE_URL=https://api.openai.com/v1
-AI_PROVIDER_MODEL=gpt-4o-mini
+AI_PROVIDER_BASE_URL=https://api.deepseek.com
+AI_PROVIDER_MODEL=deepseek-chat
 ```
 
-If `AI_PROVIDER_API_KEY` is empty, the generator runs in demo mode and the response says so. The text is assembled from the form on the server. If a key is set and the provider fails, the API returns an error and does not substitute a demo paragraph. Limits are enforced before the provider is called: guests have a daily limit, Free accounts have 5 generations a month, Pro has 100, and Business has 500. Long descriptions require Pro or Business.
+Put a DeepSeek API key in `AI_PROVIDER_API_KEY`. The key stays on the server. The generator calls `POST {AI_PROVIDER_BASE_URL}/chat/completions` with the `deepseek-chat` model, which uses DeepSeek's OpenAI-compatible API. If the key is empty, the generator runs in demo mode and the response says so. The text is assembled from the form on the server. If a key is set and DeepSeek fails, the API returns an error and does not substitute a demo paragraph. Limits are enforced before the provider is called: guests have a daily limit, Free accounts have 5 generations a month, Pro has 100, and Business has 500. Long descriptions require Pro or Business.
 
 ## Checks
 

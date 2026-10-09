@@ -45,7 +45,7 @@ class DemoProductDescriptionProvider implements ProductDescriptionProvider
             'full_description' => $full,
             'bullets' => $bullets,
             'call_to_action' => $includeCta ? 'Review the details and add it to your store.' : null,
-            'notice' => 'Demo mode: no AI provider is configured. This text was assembled from your inputs on the server. It is not a live model response.',
+            'notice' => 'Demo mode: no DeepSeek API key is configured. This text was assembled from your inputs on the server. It is not a live DeepSeek response.',
         ];
     }
 }

@@ -63,6 +63,7 @@ class ToolController extends Controller
                 ? $plans->generatorUsage($request->user(), $request)
                 : null,
             'demoMode' => ! is_string(config('quicksolve.ai.api_key')) || config('quicksolve.ai.api_key') === '',
+            'premium' => $plans->allowsPremiumTools($request->user()),
         ], $tool->name, $tool->description, '/tools/'.$tool->slug);
     }
 }

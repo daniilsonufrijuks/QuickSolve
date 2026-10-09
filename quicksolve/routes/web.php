@@ -5,6 +5,7 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadController;
+use App\Http\Controllers\FreelanceRateReportController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PageController;
@@ -26,6 +27,9 @@ Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/contact', [ContactController::class, 'create'])->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:contact')->name('contact.store');
 
+Route::post('/tools/freelance-rate-calculator/report', FreelanceRateReportController::class)
+    ->middleware(['auth', 'verified', 'throttle:pdf'])
+    ->name('tools.freelance-report');
 Route::post('/tools/invoice-generator/pdf', [InvoiceController::class, 'pdf'])
     ->middleware('throttle:pdf')
     ->name('invoices.pdf');

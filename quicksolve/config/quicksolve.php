@@ -16,10 +16,10 @@ return [
             'generator_limit' => 5,
             'description' => 'The calculators and a small monthly allowance for product descriptions.',
             'features' => [
-                'Profit margin calculator',
+                'Profit, discount, and freelance rate calculators',
                 'Invoice generator with PDF export',
+                'QR codes for links, Wi-Fi, contacts, and text',
                 '5 product descriptions per month',
-                'Account storage for invoices',
             ],
         ],
         'pro' => [
@@ -32,7 +32,7 @@ return [
                 'Everything in Free',
                 '100 product descriptions per month',
                 'Long descriptions',
-                'Premium tools as they are published',
+                'Branded QR colors and freelance rate reports',
             ],
         ],
         'business' => [
@@ -51,10 +51,11 @@ return [
     ],
 
     'ai' => [
+        'provider' => env('AI_PROVIDER', 'deepseek'),
         'api_key' => env('AI_PROVIDER_API_KEY'),
-        'base_url' => env('AI_PROVIDER_BASE_URL', 'https://api.openai.com/v1'),
-        'model' => env('AI_PROVIDER_MODEL', 'gpt-4o-mini'),
-        'timeout' => (int) env('AI_PROVIDER_TIMEOUT', 20),
+        'base_url' => env('AI_PROVIDER_BASE_URL', 'https://api.deepseek.com'),
+        'model' => env('AI_PROVIDER_MODEL', 'deepseek-chat'),
+        'timeout' => (int) env('AI_PROVIDER_TIMEOUT', 30),
     ],
 
 ];

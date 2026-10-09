@@ -253,6 +253,39 @@ test('non-admins cannot open the admin dashboard', function () {
     $this->actingAs(User::factory()->admin()->create())->get('/admin')->assertOk();
 });
 
+test('freelance rate reports require a pro or business plan', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+
+    $payload = [
+        'income_target' => '60000.00',
+        'annual_expenses' => '6000.00',
+        'hours_per_day' => '5',
+        'days_per_week' => 5,
+        'weeks_per_year' => 48,
+        'unpaid_leave_days' => 10,
+        'currency' => 'EUR',
+    ];
+
+    $this->post('/tools/freelance-rate-calculator/report', $payload)->assertRedirect(route('login'));
+
+    $free = User::factory()->create();
+    $this->actingAs($free)->post('/tools/freelance-rate-calculator/report', $payload)->assertForbidden();
+
+    $pro = User::factory()->create();
+    $pro->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_rate_report',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($pro)
+        ->post('/tools/freelance-rate-calculator/report', $payload)
+        ->assertOk()
+        ->assertSee('Hourly rate: 57.39');
+});
+
 test('premium tools are locked without a qualifying subscription', function () {
     $tool = Tool::factory()->premium()->create();
 
