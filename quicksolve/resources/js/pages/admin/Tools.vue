@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import AdminNav from '@/components/admin/AdminNav.vue';
 import FormField from '@/components/marketing/FormField.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps<{
@@ -40,6 +41,11 @@ function edit(tool: any) {
     form.clearErrors();
 }
 
+function resetForm() {
+    editingId.value = null;
+    form.reset();
+}
+
 function save() {
     if (editingId.value) {
         form.put(`/admin/tools/${editingId.value}`);
@@ -53,25 +59,70 @@ function save() {
 <template>
     <Head title="Manage tools" />
     <AppLayout :breadcrumbs="[{ title: 'Admin tools', href: '/admin/tools' }]">
-        <div class="grid gap-6 p-4 lg:grid-cols-2">
-            <form class="space-y-3" @submit.prevent="save">
-                <h1 class="text-xl font-semibold">Create or update a tool</h1>
-                <FormField label="Category"><select v-model="form.category_id" class="w-full rounded-lg border px-3 py-2"><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></FormField>
-                <FormField label="Name" :error="form.errors.name"><input v-model="form.name" class="w-full rounded-lg border px-3 py-2" /></FormField>
-                <FormField label="Slug" :error="form.errors.slug"><input v-model="form.slug" class="w-full rounded-lg border px-3 py-2" /></FormField>
-                <FormField label="Description" :error="form.errors.description"><textarea v-model="form.description" rows="3" class="w-full rounded-lg border px-3 py-2" /></FormField>
-                <FormField label="Long description"><textarea v-model="form.long_description" rows="4" class="w-full rounded-lg border px-3 py-2" /></FormField>
-                <FormField label="Access"><select v-model="form.access_type" class="w-full rounded-lg border px-3 py-2"><option value="free">Free</option><option value="premium">Premium</option></select></FormField>
-                <label class="flex gap-2 text-sm"><input v-model="form.is_published" type="checkbox" /> Published</label>
-                <label class="flex gap-2 text-sm"><input v-model="form.is_featured" type="checkbox" /> Featured</label>
-                <Button type="submit" :disabled="form.processing">Save tool</Button>
-            </form>
-            <ul class="space-y-2 text-sm">
-                <li v-for="tool in tools" :key="tool.id" class="flex items-center justify-between rounded-lg border p-3">
-                    <span>{{ tool.name }} · {{ tool.is_published ? 'Published' : 'Draft' }} · {{ tool.access_type }}</span>
-                    <Button type="button" variant="outline" @click="edit(tool)">Edit</Button>
-                </li>
-            </ul>
+        <div class="page">
+            <AdminNav />
+            <div class="layout">
+                <form class="form" @submit.prevent="save">
+                    <h1 class="title">{{ editingId ? 'Update tool' : 'Create a tool' }}</h1>
+                    <FormField label="Category"><select v-model="form.category_id" class="field"><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></FormField>
+                    <FormField label="Name" :error="form.errors.name"><input v-model="form.name" class="field" /></FormField>
+                    <FormField label="Slug" :error="form.errors.slug"><input v-model="form.slug" class="field" /></FormField>
+                    <FormField label="Description" :error="form.errors.description"><textarea v-model="form.description" rows="3" class="field" /></FormField>
+                    <FormField label="Long description"><textarea v-model="form.long_description" rows="4" class="field" /></FormField>
+                    <FormField label="Access"><select v-model="form.access_type" class="field"><option value="free">Free</option><option value="premium">Premium</option></select></FormField>
+                    <label class="check"><input v-model="form.is_published" type="checkbox" /> Published</label>
+                    <label class="check"><input v-model="form.is_featured" type="checkbox" /> Featured</label>
+                    <div class="actions">
+                        <Button type="submit" :disabled="form.processing">Save tool</Button>
+                        <Button v-if="editingId" type="button" variant="ghost" @click="resetForm">Cancel edit</Button>
+                    </div>
+                </form>
+                <ul class="list">
+                    <li v-for="tool in tools" :key="tool.id" class="row">
+                        <span>{{ tool.name }} · {{ tool.is_published ? 'Published' : 'Draft' }} · {{ tool.access_type }}</span>
+                        <div class="actions">
+                            <Button type="button" variant="outline" @click="edit(tool)">Edit</Button>
+                            <Button type="button" variant="outline" @click="router.post(`/admin/tools/${tool.id}/toggle`)">{{ tool.is_published ? 'Unpublish' : 'Publish' }}</Button>
+                            <Button type="button" variant="ghost" @click="router.delete(`/admin/tools/${tool.id}`)">Delete</Button>
+                        </div>
+                    </li>
+                </ul>
+            </div>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.page {
+    @apply space-y-4 p-4;
+}
+
+.layout {
+    @apply grid gap-6 lg:grid-cols-2;
+}
+
+.form,
+.list {
+    @apply space-y-3;
+}
+
+.title {
+    @apply text-xl font-semibold;
+}
+
+.field {
+    @apply w-full rounded-lg border px-3 py-2;
+}
+
+.check {
+    @apply flex gap-2 text-sm;
+}
+
+.row {
+    @apply flex items-center justify-between gap-3 rounded-lg border p-3 text-sm;
+}
+
+.actions {
+    @apply flex flex-wrap gap-2;
+}
+</style>

@@ -33,6 +33,8 @@ return [
                 '100 product descriptions per month',
                 'Long descriptions',
                 'Branded QR colors and freelance rate reports',
+                'PDF viewer and editor',
+                'Image resize and format conversion',
             ],
         ],
         'business' => [

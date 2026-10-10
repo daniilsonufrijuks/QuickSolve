@@ -21,10 +21,16 @@ const breadcrumbItems: BreadcrumbItem[] = [
         <Head title="Appearance settings" />
 
         <SettingsLayout>
-            <div class="space-y-6">
+            <div class="s1j8i8bf">
                 <HeadingSmall title="Appearance settings" description="Update your account's appearance settings" />
                 <AppearanceTabs />
             </div>
         </SettingsLayout>
     </AppLayout>
 </template>
+
+<style scoped>
+.s1j8i8bf {
+    @apply space-y-6;
+}
+</style>

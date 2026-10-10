@@ -26,8 +26,12 @@ class PlanResolver
 
     public function keyForPrice(string $priceId): ?string
     {
+        $prices = app(PlanPriceResolver::class);
+
         foreach (['pro', 'business'] as $plan) {
-            if ($priceId !== '' && $priceId === config("quicksolve.plans.{$plan}.stripe_price_id")) {
+            $configured = $prices->idFor($plan);
+
+            if ($priceId !== '' && $configured !== null && $priceId === $configured) {
                 return $plan;
             }
         }

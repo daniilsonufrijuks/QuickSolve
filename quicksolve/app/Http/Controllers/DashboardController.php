@@ -8,15 +8,23 @@ use App\Http\Resources\PurchaseResource;
 use App\Models\GeneratedDocument;
 use App\Models\Purchase;
 use App\Services\Billing\PlanResolver;
+use App\Services\Billing\SubscriptionSyncer;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, PlanResolver $plans): Response
+    public function __invoke(Request $request, PlanResolver $plans, SubscriptionSyncer $syncer): Response
     {
         $user = $request->user();
+
+        if ($user->stripe_id && ! $user->subscription('default')?->valid()) {
+            $syncer->syncUser($user);
+            $user->refresh();
+            $user->unsetRelation('subscriptions');
+        }
         $purchases = Purchase::query()->where('user_id', $user->id)->with('template')->latest()->limit(5)->get();
         $documents = GeneratedDocument::query()->where('user_id', $user->id)->latest()->limit(5)->get();
 
@@ -32,8 +40,13 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function subscription(Request $request, PlanResolver $plans): Response
+    public function subscription(Request $request, PlanResolver $plans, SubscriptionSyncer $syncer): Response
     {
+        $sessionId = $request->string('session_id')->toString();
+        $syncer->syncUser($request->user(), $sessionId !== '' ? $sessionId : null);
+        $request->user()->refresh();
+        $request->user()->unsetRelation('subscriptions');
+
         $subscription = $request->user()->subscription('default');
 
         return Inertia::render('dashboard/Subscription', [
@@ -48,6 +61,13 @@ class DashboardController extends Controller
             ] : null,
             'status' => $request->string('status')->toString(),
         ]);
+    }
+
+    public function syncSubscription(Request $request, SubscriptionSyncer $syncer): RedirectResponse
+    {
+        $syncer->syncUser($request->user());
+
+        return back()->with('success', 'Checked Stripe for your latest subscription.');
     }
 
     public function purchases(Request $request): Response

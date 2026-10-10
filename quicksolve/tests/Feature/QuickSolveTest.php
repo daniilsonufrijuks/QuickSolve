@@ -1,12 +1,18 @@
 <?php
 
+use App\Models\ContactMessage;
 use App\Models\GeneratedDocument;
 use App\Models\Purchase;
+use App\Models\Setting;
 use App\Models\Template;
 use App\Models\Tool;
 use App\Models\UsageEvent;
 use App\Models\User;
 use App\Services\Billing\CheckoutService;
+use App\Services\Billing\PlanPriceResolver;
+use App\Services\Billing\PlanResolver;
+use App\Services\Billing\StripePlanCatalog;
+use App\Services\Billing\SubscriptionSyncer;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -239,13 +245,28 @@ test('a failed provider does not return demo copy', function () {
     expect(UsageEvent::query()->count())->toBe(0);
 });
 
-test('a checkout return does not change the plan', function () {
+test('a checkout return does not change the plan without a stripe confirmation', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->get('/dashboard/subscription?status=processing')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->where('plan.key', 'free')->where('status', 'processing'));
+});
+
+test('a checkout return asks stripe for the session id without trusting the url', function () {
+    $user = User::factory()->create();
+
+    $this->mock(SubscriptionSyncer::class, function ($mock) use ($user) {
+        $mock->shouldReceive('syncUser')
+            ->once()
+            ->withArgs(fn ($passed, $session) => $passed->is($user) && $session === 'cs_test_123');
+    });
+
+    $this->actingAs($user)
+        ->get('/dashboard/subscription?status=processing&session_id=cs_test_123')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('plan.key', 'free'));
 });
 
 test('non-admins cannot open the admin dashboard', function () {
@@ -290,6 +311,85 @@ test('premium tools are locked without a qualifying subscription', function () {
     $tool = Tool::factory()->premium()->create();
 
     $this->get('/tools/'.$tool->slug)->assertOk()->assertInertia(fn ($page) => $page->where('locked', true));
+});
+
+test('pdf and image tools stay locked until a verified plan is active', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $this->seed();
+
+    $this->get('/tools/pdf-viewer-editor')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true)->where('tool.slug', 'pdf-viewer-editor'));
+    $this->get('/tools/image-resizer')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true)->where('tool.slug', 'image-resizer'));
+
+    $user = User::factory()->create();
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_media_tools',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($user)
+        ->get('/tools/pdf-viewer-editor')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('locked', false));
+});
+
+test('missing stripe prices are created and stored for checkout', function () {
+    config([
+        'cashier.secret' => 'sk_test_fake',
+        'quicksolve.plans.pro.stripe_price_id' => null,
+        'quicksolve.plans.business.stripe_price_id' => null,
+    ]);
+
+    $this->mock(StripePlanCatalog::class, function ($mock) {
+        $mock->shouldReceive('findOrCreatePrice')
+            ->twice()
+            ->andReturn('price_pro_live', 'price_biz_live');
+    });
+
+    $ids = app(PlanPriceResolver::class)->ensurePaidPlans();
+
+    expect($ids['pro'])->toBe('price_pro_live')
+        ->and(Setting::get('stripe.pro_price_id'))->toBe('price_pro_live')
+        ->and(app(PlanResolver::class)->keyForPrice('price_pro_live'))->toBe('pro');
+});
+
+test('admins can save billing settings, manage users, and mark refunds', function () {
+    $admin = User::factory()->admin()->create();
+    $member = User::factory()->create();
+    $purchase = Purchase::factory()->create();
+    $tool = Tool::factory()->create(['is_published' => true]);
+
+    $this->actingAs($admin)
+        ->put('/admin/billing', [
+            'pro_price_id' => 'price_abc123',
+            'business_price_id' => 'price_def456',
+        ])
+        ->assertRedirect();
+
+    expect(app(PlanPriceResolver::class)->idFor('pro'))->toBe('price_abc123');
+
+    $this->actingAs($admin)->get('/admin/users')->assertOk();
+    $this->actingAs($admin)->put('/admin/users/'.$member->id, ['is_admin' => true])->assertRedirect();
+    expect($member->fresh()->is_admin)->toBeTrue();
+
+    $message = ContactMessage::query()->create([
+        'name' => 'Ada',
+        'email' => 'ada@example.com',
+        'subject' => 'Hello',
+        'message' => 'Need a quote',
+        'is_read' => false,
+    ]);
+
+    $this->actingAs($admin)->post('/admin/contacts/'.$message->id.'/read')->assertRedirect();
+    expect($message->fresh()->is_read)->toBeTrue();
+
+    $this->actingAs($admin)->post('/admin/tools/'.$tool->id.'/toggle')->assertRedirect();
+    expect($tool->fresh()->is_published)->toBeFalse();
+
+    $this->actingAs($admin)->post('/admin/purchases/'.$purchase->id.'/refund')->assertRedirect();
+    expect($purchase->fresh()->status->value)->toBe('refunded');
 });
 
 function stripeWebhook(object $testCase, array $payload)

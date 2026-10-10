@@ -35,14 +35,14 @@ const submit = () => {
         <Head title="Reset password" />
 
         <form @submit.prevent="submit">
-            <div class="grid gap-6">
-                <div class="grid gap-2">
+            <div class="s1m7bk4l">
+                <div class="s1m7bk4h">
                     <Label for="email">Email</Label>
-                    <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
-                    <InputError :message="form.errors.email" class="mt-2" />
+                    <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="shtp1n1" readonly />
+                    <InputError :message="form.errors.email" class="s200p8" />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="s1m7bk4h">
                     <Label for="password">Password</Label>
                     <Input
                         id="password"
@@ -50,14 +50,14 @@ const submit = () => {
                         name="password"
                         autocomplete="new-password"
                         v-model="form.password"
-                        class="mt-1 block w-full"
+                        class="shtp1n1"
                         autofocus
                         placeholder="Password"
                     />
                     <InputError :message="form.errors.password" />
                 </div>
 
-                <div class="grid gap-2">
+                <div class="s1m7bk4h">
                     <Label for="password_confirmation"> Confirm Password </Label>
                     <Input
                         id="password_confirmation"
@@ -65,17 +65,43 @@ const submit = () => {
                         name="password_confirmation"
                         autocomplete="new-password"
                         v-model="form.password_confirmation"
-                        class="mt-1 block w-full"
+                        class="shtp1n1"
                         placeholder="Confirm password"
                     />
                     <InputError :message="form.errors.password_confirmation" />
                 </div>
 
-                <Button type="submit" class="mt-4 w-full" :disabled="form.processing">
-                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
+                <Button type="submit" class="s1bfdsl3" :disabled="form.processing">
+                    <LoaderCircle v-if="form.processing" class="s1nmg2sh" />
                     Reset password
                 </Button>
             </div>
         </form>
     </AuthLayout>
 </template>
+
+<style scoped>
+.s1m7bk4l {
+    @apply grid gap-6;
+}
+
+.s1m7bk4h {
+    @apply grid gap-2;
+}
+
+.shtp1n1 {
+    @apply mt-1 block w-full;
+}
+
+.s200p8 {
+    @apply mt-2;
+}
+
+.s1bfdsl3 {
+    @apply mt-4 w-full;
+}
+
+.s1nmg2sh {
+    @apply h-4 w-4 animate-spin;
+}
+</style>

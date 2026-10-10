@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminNav from '@/components/admin/AdminNav.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head } from '@inertiajs/vue3';
 
@@ -8,13 +9,21 @@ defineProps<{ subscriptions: { data: Array<any> } }>();
 <template>
     <Head title="Subscriptions" />
     <AppLayout :breadcrumbs="[{ title: 'Subscriptions', href: '/admin/subscriptions' }]">
-        <div class="p-4">
-            <h1 class="text-xl font-semibold">Subscriptions</h1>
-            <table class="mt-4 w-full text-left text-sm">
-                <thead><tr class="border-b"><th class="py-2">Account</th><th>Status</th><th>Price</th><th>Ends</th></tr></thead>
+        <div class="page">
+            <AdminNav />
+            <h1 class="title">Subscriptions</h1>
+            <table class="table">
+                <thead>
+                    <tr class="row">
+                        <th class="cell">Account</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                        <th>Ends</th>
+                    </tr>
+                </thead>
                 <tbody>
-                    <tr v-for="subscription in subscriptions.data" :key="subscription.id" class="border-b">
-                        <td class="py-2">{{ subscription.user?.email }}</td>
+                    <tr v-for="subscription in subscriptions.data" :key="subscription.id" class="row">
+                        <td class="cell">{{ subscription.user?.email }}</td>
                         <td>{{ subscription.stripe_status }}</td>
                         <td>{{ subscription.stripe_price }}</td>
                         <td>{{ subscription.ends_at ?? '—' }}</td>
@@ -24,3 +33,25 @@ defineProps<{ subscriptions: { data: Array<any> } }>();
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.page {
+    @apply p-4;
+}
+
+.title {
+    @apply text-xl font-semibold;
+}
+
+.table {
+    @apply mt-4 w-full text-left text-sm;
+}
+
+.row {
+    @apply border-b;
+}
+
+.cell {
+    @apply py-2;
+}
+</style>

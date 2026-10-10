@@ -18,11 +18,11 @@ function active(href: string) {
 
 <template>
     <nav aria-label="Primary">
-        <ul class="flex flex-col gap-1 md:flex-row md:items-center md:gap-6">
+        <ul class="sh675oh">
             <li v-for="item in items" :key="item.href">
                 <Link
                     :href="item.href"
-                    class="block rounded-md px-2 py-2 text-sm font-medium text-slate-700 hover:text-blue-700 md:px-0 md:py-0 dark:text-slate-200"
+                    class="soqkz74"
                     :class="active(item.href) ? 'text-blue-700 dark:text-blue-300' : ''"
                     :aria-current="active(item.href) ? 'page' : undefined"
                 >
@@ -32,3 +32,13 @@ function active(href: string) {
         </ul>
     </nav>
 </template>
+
+<style scoped>
+.sh675oh {
+    @apply flex flex-col gap-1 md:flex-row md:items-center md:gap-6;
+}
+
+.soqkz74 {
+    @apply block rounded-md px-2 py-2 text-sm font-medium text-slate-700 hover:text-blue-700 md:px-0 md:py-0 dark:text-slate-200;
+}
+</style>

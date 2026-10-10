@@ -149,6 +149,40 @@ class DatabaseSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'slug' => 'pdf-viewer-editor',
+                'category' => 'business-productivity',
+                'name' => 'PDF Viewer and Editor',
+                'description' => 'Open a PDF in the browser, read each page, rotate pages, add a text note, and download the result.',
+                'icon' => 'file-text',
+                'access_type' => AccessType::Premium,
+                'is_featured' => false,
+                'popularity' => 12,
+                'long_description' => 'This tool runs in your browser after a Pro or Business subscription is confirmed. The file is not uploaded to QuickSolve. You can read pages, rotate them, place a short text note, and download a new PDF. It is not a full layout program and it does not fill government forms or guarantee print fidelity.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Does QuickSolve keep my PDF?', 'a' => 'No. The file stays in the browser session. Closing the tab discards it unless you download a copy.'],
+                        ['q' => 'Can I edit every kind of PDF?', 'a' => 'Password-protected files and some scanned-only documents cannot be changed here. You can still try to view pages that the browser can render.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'image-resizer',
+                'category' => 'converters',
+                'name' => 'Image Resizer',
+                'description' => 'Resize an image and convert it between JPEG, PNG, and WebP without sending the file to the server.',
+                'icon' => 'image',
+                'access_type' => AccessType::Premium,
+                'is_featured' => false,
+                'popularity' => 11,
+                'long_description' => 'Choose a JPEG, PNG, WebP, or GIF, set a width and height, and download a new file in JPEG, PNG, or WebP. The work happens in your browser. GIF animation is not preserved. Pro and Business subscriptions unlock the tool after Stripe confirms payment.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is the image uploaded?', 'a' => 'No. Conversion uses the canvas in your browser.'],
+                        ['q' => 'Why is a GIF still after conversion?', 'a' => 'Only the first frame is drawn. Animated GIFs are not exported as animations.'],
+                    ],
+                ],
+            ],
         ];
 
         foreach ($tools as $tool) {

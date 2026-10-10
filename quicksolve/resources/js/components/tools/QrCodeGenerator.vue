@@ -97,10 +97,10 @@ async function downloadSvg() {
 </script>
 
 <template>
-    <div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <form class="space-y-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900" @submit.prevent>
+    <div class="s16x0eqh">
+        <form class="s1r0jak5" @submit.prevent>
             <FormField label="Content">
-                <select v-model="form.type" class="w-full rounded-lg border px-3 py-2">
+                <select v-model="form.type" class="s1wl1yqe">
                     <option value="url">URL</option>
                     <option value="wifi">Wi-Fi</option>
                     <option value="contact">Contact</option>
@@ -108,23 +108,23 @@ async function downloadSvg() {
                 </select>
             </FormField>
             <FormField v-if="form.type === 'url'" label="URL">
-                <input v-model="form.url" type="url" class="w-full rounded-lg border px-3 py-2" placeholder="https://example.com" />
+                <input v-model="form.url" type="url" class="s1wl1yqe" placeholder="https://example.com" />
             </FormField>
             <template v-else-if="form.type === 'wifi'">
                 <FormField label="Network name">
-                    <input v-model="form.wifi_ssid" class="w-full rounded-lg border px-3 py-2" autocomplete="off" />
+                    <input v-model="form.wifi_ssid" class="s1wl1yqe" autocomplete="off" />
                 </FormField>
                 <FormField label="Security">
-                    <select v-model="form.wifi_security" class="w-full rounded-lg border px-3 py-2">
+                    <select v-model="form.wifi_security" class="s1wl1yqe">
                         <option value="WPA">WPA/WPA2</option>
                         <option value="WEP">WEP</option>
                         <option value="NOPASS">No password</option>
                     </select>
                 </FormField>
                 <FormField v-if="form.wifi_security !== 'NOPASS'" label="Password" hint="The password stays in your browser. It is not sent to QuickSolve.">
-                    <input v-model="form.wifi_password" type="password" class="w-full rounded-lg border px-3 py-2" autocomplete="new-password" />
+                    <input v-model="form.wifi_password" type="password" class="s1wl1yqe" autocomplete="new-password" />
                 </FormField>
-                <label class="flex items-center gap-2 text-sm"><input v-model="form.wifi_hidden" type="checkbox" /> Hidden network</label>
+                <label class="s1mng9fi"><input v-model="form.wifi_hidden" type="checkbox" /> Hidden network</label>
             </template>
             <template v-else-if="form.type === 'contact'">
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -162,3 +162,21 @@ async function downloadSvg() {
         </section>
     </div>
 </template>
+
+<style scoped>
+.s16x0eqh {
+    @apply grid gap-6 lg:grid-cols-[1.1fr_0.9fr];
+}
+
+.s1r0jak5 {
+    @apply space-y-4 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900;
+}
+
+.s1wl1yqe {
+    @apply w-full rounded-lg border px-3 py-2;
+}
+
+.s1mng9fi {
+    @apply flex items-center gap-2 text-sm;
+}
+</style>

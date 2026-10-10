@@ -21,7 +21,10 @@ const mainNavItems = [
 ];
 
 if (page.props.auth.user?.is_admin) {
-    mainNavItems.push({ title: 'Admin', url: '/admin', icon: Shield });
+    mainNavItems.push(
+        { title: 'Admin', url: '/admin', icon: Shield },
+        { title: 'Billing', url: '/admin/billing', icon: CreditCard },
+    );
 }
 
 const footerNavItems: { title: string; href: string; icon?: typeof LayoutGrid }[] = [];

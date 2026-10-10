@@ -6,8 +6,8 @@ import { Head } from '@inertiajs/vue3';
 <template>
     <Head title="Privacy policy" />
     <MarketingLayout>
-        <article class="mx-auto max-w-3xl space-y-4 px-4 py-12 text-sm leading-7 text-slate-700">
-            <h1 class="text-3xl font-semibold text-slate-950">Privacy policy</h1>
+        <article class="s66pyfr">
+            <h1 class="s1lgo0y0">Privacy policy</h1>
             <p>QuickSolve stores the account details you submit: name, email, and a hashed password. Profile changes and account deletion are available in settings.</p>
             <p>Payments are handled by Stripe. QuickSolve stores the purchase or subscription status it needs to grant a download or a plan. It does not store card numbers.</p>
             <p>Product description requests may be sent to the configured AI provider when a key is present. Usage events record the tool and the type of action. Guest events store a hash of the session, not the raw IP address, so daily limits can be enforced.</p>
@@ -17,3 +17,13 @@ import { Head } from '@inertiajs/vue3';
         </article>
     </MarketingLayout>
 </template>
+
+<style scoped>
+.s66pyfr {
+    @apply mx-auto max-w-3xl space-y-4 px-4 py-12 text-sm leading-7 text-slate-700;
+}
+
+.s1lgo0y0 {
+    @apply text-3xl font-semibold text-slate-950;
+}
+</style>

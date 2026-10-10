@@ -11,5 +11,13 @@ class ContactMessage extends Model
         'email',
         'subject',
         'message',
+        'is_read',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_read' => 'boolean',
+        ];
+    }
 }

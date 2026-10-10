@@ -12,17 +12,44 @@ defineProps<{
 <template>
     <Head title="Purchases" />
     <AppLayout :breadcrumbs="[{ title: 'Purchases', href: '/dashboard/purchases' }]">
-        <div class="space-y-4 p-4">
-            <h1 class="text-2xl font-semibold">Purchases</h1>
-            <p v-if="status === 'processing'" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">If you paid, the download appears after the webhook marks the purchase as paid.</p>
-            <ul class="divide-y rounded-xl border">
-                <li v-for="purchase in purchases.data" :key="purchase.id" class="flex items-center justify-between p-3 text-sm">
+        <div class="sx862vk">
+            <h1 class="sixq2vr">Purchases</h1>
+            <p class="syp5vk7">These are one-time template downloads. A Pro or Business subscription appears under Subscription, not here.</p>
+            <p v-if="status === 'processing'" class="s1kmzj3r">If you paid for a template, the download appears after Stripe confirms the payment.</p>
+            <ul class="sm6llz1">
+                <li v-for="purchase in purchases.data" :key="purchase.id" class="s5rs950">
                     <span>{{ purchase.template?.name }}</span>
                     <span>{{ purchase.formatted_amount }} · {{ purchase.status }}</span>
                 </li>
             </ul>
-            <p v-if="purchases.data.length === 0" class="text-sm text-slate-500">No purchases yet.</p>
+            <p v-if="purchases.data.length === 0" class="syp5vk7">No purchases yet.</p>
             <Pagination :meta="purchases.meta" path="/dashboard/purchases" />
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.sx862vk {
+    @apply space-y-4 p-4;
+}
+
+.sixq2vr {
+    @apply text-2xl font-semibold;
+}
+
+.s1kmzj3r {
+    @apply rounded-lg bg-amber-50 p-3 text-sm text-amber-900;
+}
+
+.sm6llz1 {
+    @apply divide-y rounded-xl border;
+}
+
+.s5rs950 {
+    @apply flex items-center justify-between p-3 text-sm;
+}
+
+.syp5vk7 {
+    @apply text-sm text-slate-500;
+}
+</style>

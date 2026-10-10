@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/dashboard/profile', [ProfileController::class, 'edit'])->name('dashboard.profile');
     Route::get('/dashboard/subscription', [DashboardController::class, 'subscription'])->name('dashboard.subscription');
+    Route::post('/dashboard/subscription/sync', [DashboardController::class, 'syncSubscription'])->name('dashboard.subscription.sync');
     Route::get('/dashboard/purchases', [DashboardController::class, 'purchases'])->name('dashboard.purchases');
     Route::get('/dashboard/downloads', [DashboardController::class, 'downloads'])->name('dashboard.downloads');
     Route::get('/dashboard/documents', [DashboardController::class, 'documents'])->name('dashboard.documents');
@@ -58,16 +59,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/billing', [AdminController::class, 'billing'])->name('billing');
+    Route::put('/billing', [AdminController::class, 'updateBilling'])->name('billing.update');
+    Route::post('/billing/sync', [AdminController::class, 'syncBilling'])->name('billing.sync');
+    Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+    Route::get('/contacts', [AdminController::class, 'contacts'])->name('contacts');
+    Route::post('/contacts/{message}/read', [AdminController::class, 'markContactRead'])->name('contacts.read');
+    Route::delete('/contacts/{message}', [AdminController::class, 'destroyContact'])->name('contacts.destroy');
     Route::get('/tools', [AdminController::class, 'tools'])->name('tools');
     Route::post('/tools', [AdminController::class, 'storeTool'])->name('tools.store');
     Route::put('/tools/{tool}', [AdminController::class, 'updateTool'])->name('tools.update');
+    Route::post('/tools/{tool}/toggle', [AdminController::class, 'toggleTool'])->name('tools.toggle');
+    Route::delete('/tools/{tool}', [AdminController::class, 'destroyTool'])->name('tools.destroy');
     Route::get('/categories', [AdminController::class, 'categories'])->name('categories');
     Route::post('/categories', [AdminController::class, 'storeCategory'])->name('categories.store');
     Route::put('/categories/{category}', [AdminController::class, 'updateCategory'])->name('categories.update');
+    Route::delete('/categories/{category}', [AdminController::class, 'destroyCategory'])->name('categories.destroy');
     Route::get('/templates', [AdminController::class, 'templates'])->name('templates');
     Route::post('/templates', [AdminController::class, 'storeTemplate'])->name('templates.store');
     Route::put('/templates/{template}', [AdminController::class, 'updateTemplate'])->name('templates.update');
+    Route::post('/templates/{template}/toggle', [AdminController::class, 'toggleTemplate'])->name('templates.toggle');
+    Route::delete('/templates/{template}', [AdminController::class, 'destroyTemplate'])->name('templates.destroy');
     Route::get('/purchases', [AdminController::class, 'purchases'])->name('purchases');
+    Route::post('/purchases/{purchase}/refund', [AdminController::class, 'refundPurchase'])->name('purchases.refund');
     Route::get('/subscriptions', [AdminController::class, 'subscriptions'])->name('subscriptions');
     Route::get('/usage', [AdminController::class, 'usage'])->name('usage');
 });

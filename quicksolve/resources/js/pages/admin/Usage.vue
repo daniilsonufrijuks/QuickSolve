@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import AdminNav from '@/components/admin/AdminNav.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 
 defineProps<{
     rows: Array<{ usage_type: string; tool_slug: string; total: number }>;
@@ -11,24 +12,66 @@ defineProps<{
 <template>
     <Head title="Usage" />
     <AppLayout :breadcrumbs="[{ title: 'Usage', href: '/admin/usage' }]">
-        <div class="space-y-8 p-4">
+        <div class="page">
+            <AdminNav />
             <section>
-                <h1 class="text-xl font-semibold">Usage, last 30 days</h1>
-                <ul class="mt-3 space-y-1 text-sm">
+                <h1 class="title">Usage, last 30 days</h1>
+                <ul class="list">
                     <li v-for="row in rows" :key="`${row.usage_type}-${row.tool_slug}`">{{ row.tool_slug }} · {{ row.usage_type }} · {{ row.total }}</li>
-                    <li v-if="rows.length === 0" class="text-slate-500">No events yet.</li>
+                    <li v-if="rows.length === 0" class="muted">No events yet.</li>
                 </ul>
             </section>
             <section>
-                <h2 class="text-xl font-semibold">Contact messages</h2>
-                <ul class="mt-3 space-y-3 text-sm">
-                    <li v-for="message in messages" :key="message.id" class="rounded-lg border p-3">
-                        <p class="font-medium">{{ message.subject }}</p>
-                        <p class="text-slate-500">{{ message.name }} · {{ message.email }}</p>
-                        <p class="mt-1">{{ message.message }}</p>
+                <h2 class="title">Recent contact messages</h2>
+                <p class="copy"><Link href="/admin/contacts" class="link">Open the inbox</Link> to mark messages read or delete them.</p>
+                <ul class="cards">
+                    <li v-for="message in messages" :key="message.id" class="card">
+                        <p class="name">{{ message.subject }}</p>
+                        <p class="muted">{{ message.name }} · {{ message.email }}</p>
+                        <p class="body">{{ message.message }}</p>
                     </li>
                 </ul>
             </section>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.page {
+    @apply space-y-8 p-4;
+}
+
+.title {
+    @apply text-xl font-semibold;
+}
+
+.list {
+    @apply mt-3 space-y-1 text-sm;
+}
+
+.muted,
+.copy,
+.body {
+    @apply text-sm;
+}
+
+.link {
+    @apply text-blue-800 underline dark:text-blue-200;
+}
+
+.cards {
+    @apply mt-3 space-y-3;
+}
+
+.card {
+    @apply rounded-lg border p-3;
+}
+
+.name {
+    @apply font-medium;
+}
+
+.body {
+    @apply mt-1;
+}
+</style>

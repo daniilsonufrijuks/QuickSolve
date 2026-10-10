@@ -10,10 +10,12 @@ use App\Services\Billing\CheckoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 class BillingController extends Controller
 {
-    public function checkout(SubscriptionCheckoutRequest $request, CheckoutService $checkout, UsageRecorder $usage): RedirectResponse|JsonResponse
+    public function checkout(SubscriptionCheckoutRequest $request, CheckoutService $checkout, UsageRecorder $usage): RedirectResponse|JsonResponse|Response
     {
         $usage->record('checkout_started', 'subscription-'.$request->string('plan'), $request->user(), $request);
 
@@ -72,7 +74,7 @@ class BillingController extends Controller
         return back()->with('success', $message);
     }
 
-    public function template(Request $request, Template $template, CheckoutService $checkout, UsageRecorder $usage): RedirectResponse|JsonResponse
+    public function template(Request $request, Template $template, CheckoutService $checkout, UsageRecorder $usage): RedirectResponse|JsonResponse|Response
     {
         $usage->record('checkout_started', $template->slug, $request->user(), $request);
 
@@ -85,12 +87,16 @@ class BillingController extends Controller
         return $this->checkoutResponse($request, $url);
     }
 
-    private function checkoutResponse(Request $request, string $url): RedirectResponse|JsonResponse
+    private function checkoutResponse(Request $request, string $url): RedirectResponse|JsonResponse|Response
     {
         if ($request->expectsJson() || $request->is('api/*')) {
             return response()->json([
                 'data' => ['checkout_url' => $url],
             ]);
+        }
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($url);
         }
 
         return redirect()->away($url);

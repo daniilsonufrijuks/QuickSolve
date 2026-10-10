@@ -14,10 +14,16 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <AppShell class="flex-col">
+    <AppShell class="sstphgs">
         <AppHeader :breadcrumbs="breadcrumbs" />
         <AppContent>
             <slot />
         </AppContent>
     </AppShell>
 </template>
+
+<style scoped>
+.sstphgs {
+    @apply flex-col;
+}
+</style>

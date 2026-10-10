@@ -47,49 +47,49 @@ const submit = () => {
         <Head title="Profile settings" />
 
         <SettingsLayout>
-            <div class="flex flex-col space-y-6">
+            <div class="sv5nqum">
                 <HeadingSmall title="Profile information" description="Update your name and email address" />
 
-                <form @submit.prevent="submit" class="space-y-6">
-                    <div class="grid gap-2">
+                <form @submit.prevent="submit" class="s1j8i8bf">
+                    <div class="s1m7bk4h">
                         <Label for="name">Name</Label>
-                        <Input id="name" class="mt-1 block w-full" v-model="form.name" required autocomplete="name" placeholder="Full name" />
-                        <InputError class="mt-2" :message="form.errors.name" />
+                        <Input id="name" class="shtp1n1" v-model="form.name" required autocomplete="name" placeholder="Full name" />
+                        <InputError class="s200p8" :message="form.errors.name" />
                     </div>
 
-                    <div class="grid gap-2">
+                    <div class="s1m7bk4h">
                         <Label for="email">Email address</Label>
                         <Input
                             id="email"
                             type="email"
-                            class="mt-1 block w-full"
+                            class="shtp1n1"
                             v-model="form.email"
                             required
                             autocomplete="username"
                             placeholder="Email address"
                         />
-                        <InputError class="mt-2" :message="form.errors.email" />
+                        <InputError class="s200p8" :message="form.errors.email" />
                     </div>
 
                     <div v-if="mustVerifyEmail && !user.email_verified_at">
-                        <p class="mt-2 text-sm text-neutral-800">
+                        <p class="sbmr2fg">
                             Your email address is unverified.
                             <Link
                                 :href="route('verification.send')"
                                 method="post"
                                 as="button"
-                                class="focus:outline-hidden rounded-md text-sm text-neutral-600 underline hover:text-neutral-900 focus:ring-2 focus:ring-offset-2"
+                                class="sgtsarf"
                             >
                                 Click here to re-send the verification email.
                             </Link>
                         </p>
 
-                        <div v-if="status === 'verification-link-sent'" class="mt-2 text-sm font-medium text-green-600">
+                        <div v-if="status === 'verification-link-sent'" class="s9bs6kz">
                             A new verification link has been sent to your email address.
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-4">
+                    <div class="s2ca09y">
                         <Button :disabled="form.processing">Save</Button>
 
                         <TransitionRoot
@@ -99,7 +99,7 @@ const submit = () => {
                             leave="transition ease-in-out"
                             leave-to="opacity-0"
                         >
-                            <p class="text-sm text-neutral-600">Saved.</p>
+                            <p class="sz34qra">Saved.</p>
                         </TransitionRoot>
                     </div>
                 </form>
@@ -109,3 +109,45 @@ const submit = () => {
         </SettingsLayout>
     </AppLayout>
 </template>
+
+<style scoped>
+.sv5nqum {
+    @apply flex flex-col space-y-6;
+}
+
+.s1j8i8bf {
+    @apply space-y-6;
+}
+
+.s1m7bk4h {
+    @apply grid gap-2;
+}
+
+.shtp1n1 {
+    @apply mt-1 block w-full;
+}
+
+.s200p8 {
+    @apply mt-2;
+}
+
+.sbmr2fg {
+    @apply mt-2 text-sm text-neutral-800;
+}
+
+.sgtsarf {
+    @apply rounded-md text-sm text-neutral-600 underline hover:text-neutral-900 focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.s9bs6kz {
+    @apply mt-2 text-sm font-medium text-green-600;
+}
+
+.s2ca09y {
+    @apply flex items-center gap-4;
+}
+
+.sz34qra {
+    @apply text-sm text-neutral-600;
+}
+</style>

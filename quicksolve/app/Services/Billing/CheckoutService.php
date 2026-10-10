@@ -10,23 +10,38 @@ use Illuminate\Support\Facades\Log;
 
 class CheckoutService
 {
+    public function __construct(private readonly PlanPriceResolver $prices) {}
+
     public function subscriptionCheckout(User $user, string $plan): string
     {
         $this->assertConfigured();
 
-        $priceId = config("quicksolve.plans.{$plan}.stripe_price_id");
-
-        if (! in_array($plan, ['pro', 'business'], true) || ! is_string($priceId) || $priceId === '') {
-            throw new BillingNotConfiguredException('This plan does not have a Stripe price yet. Add the price ID on the server before checkout.');
+        if (! in_array($plan, ['pro', 'business'], true)) {
+            throw new BillingNotConfiguredException('Choose the Pro or Business plan.');
         }
 
-        return $user->newSubscription('default', $priceId)->checkout([
-            'success_url' => route('dashboard.subscription', ['status' => 'processing']),
-            'cancel_url' => route('pricing'),
-            'metadata' => [
+        $priceId = $this->prices->ensure($plan);
+
+        try {
+            return $user->newSubscription('default', $priceId)->checkout([
+                'success_url' => route('dashboard.subscription', ['status' => 'processing']).'&session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('pricing'),
+                'client_reference_id' => (string) $user->id,
+                'metadata' => [
+                    'plan' => $plan,
+                    'user_id' => (string) $user->id,
+                ],
+            ])->asStripeCheckoutSession()->url;
+        } catch (BillingNotConfiguredException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::warning('Subscription checkout could not be created.', [
                 'plan' => $plan,
-            ],
-        ])->asStripeCheckoutSession()->url;
+                'exception' => $exception::class,
+            ]);
+
+            throw new BillingNotConfiguredException('Checkout could not be started. Confirm Stripe test mode is configured and try again from Admin → Billing.');
+        }
     }
 
     public function templateCheckout(User $user, Template $template): string

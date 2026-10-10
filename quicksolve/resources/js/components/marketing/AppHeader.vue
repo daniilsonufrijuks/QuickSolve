@@ -11,13 +11,13 @@ const page = usePage<SharedData>();
 </script>
 
 <template>
-    <header class="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-        <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
-            <Link href="/" class="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">QuickSolve</Link>
-            <div class="hidden md:block">
+    <header class="s1665r3c">
+        <div class="svt8r08">
+            <Link href="/" class="s10madg1">QuickSolve</Link>
+            <div class="s1pfga74">
                 <MainNavigation />
             </div>
-            <div class="hidden items-center gap-2 md:flex">
+            <div class="s1h9tyzz">
                 <Button v-if="page.props.auth.user" as-child variant="outline">
                     <Link href="/dashboard">Dashboard</Link>
                 </Button>
@@ -53,3 +53,25 @@ const page = usePage<SharedData>();
         </div>
     </header>
 </template>
+
+<style scoped>
+.s1665r3c {
+    @apply border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950;
+}
+
+.svt8r08 {
+    @apply mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4;
+}
+
+.s10madg1 {
+    @apply text-lg font-semibold tracking-tight text-slate-950 dark:text-white;
+}
+
+.s1pfga74 {
+    @apply hidden md:block;
+}
+
+.s1h9tyzz {
+    @apply hidden items-center gap-2 md:flex;
+}
+</style>

@@ -24,12 +24,34 @@ watch(
 </script>
 
 <template>
-    <div v-if="message" class="fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border bg-white p-4 shadow-sm dark:bg-slate-900" role="status">
-        <div class="flex items-start gap-3">
-            <p class="text-sm" :class="tone === 'error' ? 'text-red-700' : 'text-slate-800 dark:text-slate-100'">{{ message }}</p>
-            <button type="button" class="text-slate-500" aria-label="Dismiss notification" @click="message = ''">
-                <X class="size-4" />
+    <div v-if="message" class="svr24hv" role="status">
+        <div class="s1sthhai">
+            <p class="s1bkxu62" :class="tone === 'error' ? 'text-red-700' : 'text-slate-800 dark:text-slate-100'">{{ message }}</p>
+            <button type="button" class="s1frj40x" aria-label="Dismiss notification" @click="message = ''">
+                <X class="s1k44y20" />
             </button>
         </div>
     </div>
 </template>
+
+<style scoped>
+.svr24hv {
+    @apply fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border bg-white p-4 shadow-sm dark:bg-slate-900;
+}
+
+.s1sthhai {
+    @apply flex items-start gap-3;
+}
+
+.s1bkxu62 {
+    @apply text-sm;
+}
+
+.s1frj40x {
+    @apply text-slate-500;
+}
+
+.s1k44y20 {
+    @apply size-4;
+}
+</style>

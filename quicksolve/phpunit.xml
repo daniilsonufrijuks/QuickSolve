@@ -28,6 +28,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="CASHIER_CURRENCY" value="eur"/>
+        <env name="STRIPE_KEY" value=""/>
+        <env name="STRIPE_SECRET" value=""/>
+        <env name="STRIPE_WEBHOOK_SECRET" value=""/>
         <env name="AI_PROVIDER_API_KEY" value=""/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

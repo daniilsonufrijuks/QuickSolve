@@ -18,37 +18,79 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
 <template>
     <Head title="Dashboard" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="space-y-6 p-4">
-            <div class="grid gap-4 md:grid-cols-3">
-                <section class="rounded-xl border p-4">
-                    <p class="text-sm text-slate-500">Plan</p>
-                    <p class="mt-1 text-2xl font-semibold">{{ plan.name }}</p>
-                    <Button as-child class="mt-3" variant="outline"><Link href="/dashboard/subscription">Manage</Link></Button>
+        <div class="sx99o2a">
+            <div class="swmc7i2">
+                <section class="s1rk4jvz">
+                    <p class="syp5vk7">Plan</p>
+                    <p class="si3k1n0">{{ plan.name }}</p>
+                    <Button as-child class="s200p9" variant="outline"><Link href="/dashboard/subscription">Manage</Link></Button>
                 </section>
-                <section class="rounded-xl border p-4">
-                    <p class="text-sm text-slate-500">Descriptions this {{ usage.window }}</p>
-                    <p class="mt-1 text-2xl font-semibold">{{ usage.used }} / {{ usage.limit }}</p>
+                <section class="s1rk4jvz">
+                    <p class="syp5vk7">Descriptions this {{ usage.window }}</p>
+                    <p class="si3k1n0">{{ usage.used }} / {{ usage.limit }}</p>
                 </section>
-                <section class="rounded-xl border p-4">
-                    <p class="text-sm text-slate-500">Paid downloads</p>
-                    <p class="mt-1 text-2xl font-semibold">{{ counts.purchases }}</p>
-                    <p class="mt-2 text-sm text-slate-600">{{ counts.documents }} saved invoices</p>
+                <section class="s1rk4jvz">
+                    <p class="syp5vk7">Template downloads</p>
+                    <p class="si3k1n0">{{ counts.purchases }}</p>
+                    <p class="swr3obg">{{ counts.documents }} saved invoices</p>
                 </section>
             </div>
             <section>
-                <h2 class="font-semibold">Recent purchases</h2>
-                <ul class="mt-2 space-y-2 text-sm">
+                <h2 class="sreg0xd">Recent purchases</h2>
+                <ul class="sa19kgt">
                     <li v-for="purchase in purchases" :key="purchase.id">{{ purchase.template?.name }} — {{ purchase.formatted_amount }} ({{ purchase.status }})</li>
-                    <li v-if="purchases.length === 0" class="text-slate-500">No purchases yet.</li>
+                    <li v-if="purchases.length === 0" class="s1frj40x">No purchases yet.</li>
                 </ul>
             </section>
             <section>
-                <h2 class="font-semibold">Recent invoices</h2>
-                <ul class="mt-2 space-y-2 text-sm">
+                <h2 class="sreg0xd">Recent invoices</h2>
+                <ul class="sa19kgt">
                     <li v-for="document in documents" :key="document.id">{{ document.title }}</li>
-                    <li v-if="documents.length === 0" class="text-slate-500">No saved invoices yet.</li>
+                    <li v-if="documents.length === 0" class="s1frj40x">No saved invoices yet.</li>
                 </ul>
             </section>
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.sx99o2a {
+    @apply space-y-6 p-4;
+}
+
+.swmc7i2 {
+    @apply grid gap-4 md:grid-cols-3;
+}
+
+.s1rk4jvz {
+    @apply rounded-xl border p-4;
+}
+
+.syp5vk7 {
+    @apply text-sm text-slate-500;
+}
+
+.si3k1n0 {
+    @apply mt-1 text-2xl font-semibold;
+}
+
+.s200p9 {
+    @apply mt-3;
+}
+
+.swr3obg {
+    @apply mt-2 text-sm text-slate-600;
+}
+
+.sreg0xd {
+    @apply font-semibold;
+}
+
+.sa19kgt {
+    @apply mt-2 space-y-2 text-sm;
+}
+
+.s1frj40x {
+    @apply text-slate-500;
+}
+</style>

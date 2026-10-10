@@ -3,5 +3,11 @@ defineProps<{ label: string }>();
 </script>
 
 <template>
-    <section class="hidden" :aria-label="label" />
+    <section class="s1ew92ne" :aria-label="label" />
 </template>
+
+<style scoped>
+.s1ew92ne {
+    @apply hidden;
+}
+</style>
