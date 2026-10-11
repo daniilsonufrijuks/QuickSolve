@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import AdminNav from '@/components/admin/AdminNav.vue';
+import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 
 defineProps<{
     rows: Array<{ usage_type: string; tool_slug: string; total: number }>;
-    messages: Array<{ id: number; name: string; email: string; subject: string; message: string }>;
+    events: {
+        data: Array<{ id: number; usage_type: string; tool_slug: string; created_at: string; user?: { email?: string } | null }>;
+    };
 }>();
 </script>
 
@@ -22,13 +25,12 @@ defineProps<{
                 </ul>
             </section>
             <section>
-                <h2 class="title">Recent contact messages</h2>
-                <p class="copy"><Link href="/admin/contacts" class="link">Open the inbox</Link> to mark messages read or delete them.</p>
+                <h2 class="title">Recent events</h2>
                 <ul class="cards">
-                    <li v-for="message in messages" :key="message.id" class="card">
-                        <p class="name">{{ message.subject }}</p>
-                        <p class="muted">{{ message.name }} · {{ message.email }}</p>
-                        <p class="body">{{ message.message }}</p>
+                    <li v-for="event in events.data" :key="event.id" class="card">
+                        <p class="name">{{ event.tool_slug }} · {{ event.usage_type }}</p>
+                        <p class="muted">{{ event.user?.email ?? 'Guest' }} · {{ event.created_at }}</p>
+                        <Button type="button" variant="ghost" @click="router.delete(`/admin/usage/${event.id}`)">Delete</Button>
                     </li>
                 </ul>
             </section>
@@ -49,14 +51,8 @@ defineProps<{
     @apply mt-3 space-y-1 text-sm;
 }
 
-.muted,
-.copy,
-.body {
+.muted {
     @apply text-sm;
-}
-
-.link {
-    @apply text-blue-800 underline dark:text-blue-200;
 }
 
 .cards {
@@ -64,14 +60,10 @@ defineProps<{
 }
 
 .card {
-    @apply rounded-lg border p-3;
+    @apply flex items-center justify-between gap-3 rounded-lg border p-3;
 }
 
 .name {
     @apply font-medium;
-}
-
-.body {
-    @apply mt-1;
 }
 </style>

@@ -11,6 +11,8 @@ const links = [
     ['Purchases', '/admin/purchases'],
     ['Subscriptions', '/admin/subscriptions'],
     ['Messages', '/admin/contacts'],
+    ['Documents', '/admin/documents'],
+    ['Settings', '/admin/settings'],
     ['Usage', '/admin/usage'],
 ];
 

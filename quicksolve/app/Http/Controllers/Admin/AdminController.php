@@ -6,18 +6,25 @@ use App\Enums\CategoryType;
 use App\Enums\PurchaseStatus;
 use App\Http\Controllers\Controller;
 use App\Exceptions\BillingNotConfiguredException;
+use App\Http\Requests\Admin\SaveAdminUserRequest;
 use App\Http\Requests\Admin\SaveBillingSettingsRequest;
 use App\Http\Requests\Admin\SaveCategoryRequest;
+use App\Http\Requests\Admin\SaveContactMessageRequest;
+use App\Http\Requests\Admin\SaveGeneratedDocumentRequest;
+use App\Http\Requests\Admin\SavePurchaseRequest;
+use App\Http\Requests\Admin\SaveSettingRequest;
 use App\Http\Requests\Admin\SaveTemplateRequest;
 use App\Http\Requests\Admin\SaveToolRequest;
-use App\Http\Requests\Admin\UpdateAdminUserRequest;
 use App\Models\Category;
 use App\Models\ContactMessage;
+use App\Models\GeneratedDocument;
 use App\Models\Purchase;
+use App\Models\Setting;
 use App\Models\Template;
 use App\Models\Tool;
 use App\Models\UsageEvent;
 use App\Models\User;
+use App\Services\Admin\AdminStats;
 use App\Services\Billing\PlanPriceResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,19 +36,10 @@ use Laravel\Cashier\Subscription;
 
 class AdminController extends Controller
 {
-    public function dashboard(): Response
+    public function dashboard(AdminStats $stats): Response
     {
         return Inertia::render('admin/Dashboard', [
-            'stats' => [
-                'users' => User::query()->count(),
-                'published_tools' => Tool::query()->published()->count(),
-                'published_templates' => Template::query()->published()->count(),
-                'paid_purchases' => Purchase::query()->where('status', PurchaseStatus::Paid)->count(),
-                'active_subscriptions' => Subscription::query()->where('stripe_status', 'active')->count(),
-                'events_30_days' => UsageEvent::query()->where('created_at', '>=', now()->subDays(30))->count(),
-                'unread_messages' => ContactMessage::query()->where('is_read', false)->count(),
-                'admins' => User::query()->where('is_admin', true)->count(),
-            ],
+            'stats' => $stats->dashboard(),
             'billing' => app(PlanPriceResolver::class)->summary(),
         ]);
     }
@@ -68,7 +66,23 @@ class AdminController extends Controller
         ]);
     }
 
-    public function updateUser(UpdateAdminUserRequest $request, User $user): RedirectResponse
+    public function storeUser(SaveAdminUserRequest $request): RedirectResponse
+    {
+        $user = User::query()->create([
+            'name' => $request->string('name')->toString(),
+            'email' => $request->string('email')->toString(),
+            'password' => $request->string('password')->toString(),
+        ]);
+
+        $user->forceFill([
+            'is_admin' => $request->boolean('is_admin'),
+            'email_verified_at' => $request->boolean('email_verified') ? now() : null,
+        ])->save();
+
+        return back()->with('success', 'User created.');
+    }
+
+    public function updateUser(SaveAdminUserRequest $request, User $user): RedirectResponse
     {
         $makeAdmin = $request->boolean('is_admin');
 
@@ -76,9 +90,37 @@ class AdminController extends Controller
             return back()->with('error', 'Keep at least one administrator.');
         }
 
-        $user->forceFill(['is_admin' => $makeAdmin])->save();
+        $payload = [
+            'name' => $request->string('name')->toString(),
+            'email' => $request->string('email')->toString(),
+        ];
 
-        return back()->with('success', $makeAdmin ? 'Administrator access granted.' : 'Administrator access removed.');
+        if ($request->filled('password')) {
+            $payload['password'] = $request->string('password')->toString();
+        }
+
+        $user->fill($payload);
+        $user->forceFill([
+            'is_admin' => $makeAdmin,
+            'email_verified_at' => $request->boolean('email_verified') ? ($user->email_verified_at ?? now()) : null,
+        ])->save();
+
+        return back()->with('success', 'User saved.');
+    }
+
+    public function destroyUser(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user()?->is($user)) {
+            return back()->with('error', 'You cannot delete your own account from here.');
+        }
+
+        if ($user->is_admin && User::query()->where('is_admin', true)->count() <= 1) {
+            return back()->with('error', 'Keep at least one administrator.');
+        }
+
+        $user->delete();
+
+        return back()->with('success', 'User deleted.');
     }
 
     public function billing(PlanPriceResolver $prices): Response
@@ -117,6 +159,26 @@ class AdminController extends Controller
         return Inertia::render('admin/Contacts', [
             'messages' => ContactMessage::query()->latest()->paginate(20),
         ]);
+    }
+
+    public function storeContact(SaveContactMessageRequest $request): RedirectResponse
+    {
+        ContactMessage::query()->create([
+            ...$request->safe()->only(['name', 'email', 'subject', 'message']),
+            'is_read' => $request->boolean('is_read'),
+        ]);
+
+        return back()->with('success', 'Message saved.');
+    }
+
+    public function updateContact(SaveContactMessageRequest $request, ContactMessage $message): RedirectResponse
+    {
+        $message->update([
+            ...$request->safe()->only(['name', 'email', 'subject', 'message']),
+            'is_read' => $request->boolean('is_read'),
+        ]);
+
+        return back()->with('success', 'Message updated.');
     }
 
     public function markContactRead(ContactMessage $message): RedirectResponse
@@ -294,7 +356,30 @@ class AdminController extends Controller
     {
         return Inertia::render('admin/Purchases', [
             'purchases' => Purchase::query()->with(['user:id,name,email', 'template:id,name'])->latest()->paginate(20),
+            'users' => User::query()->orderBy('email')->get(['id', 'name', 'email']),
+            'templates' => Template::query()->orderBy('name')->get(['id', 'name']),
         ]);
+    }
+
+    public function storePurchase(SavePurchaseRequest $request): RedirectResponse
+    {
+        Purchase::query()->create($this->purchasePayload($request));
+
+        return back()->with('success', 'Purchase saved.');
+    }
+
+    public function updatePurchase(SavePurchaseRequest $request, Purchase $purchase): RedirectResponse
+    {
+        $purchase->update($this->purchasePayload($request, $purchase));
+
+        return back()->with('success', 'Purchase updated.');
+    }
+
+    public function destroyPurchase(Purchase $purchase): RedirectResponse
+    {
+        $purchase->delete();
+
+        return back()->with('success', 'Purchase deleted.');
     }
 
     public function refundPurchase(Purchase $purchase): RedirectResponse
@@ -328,8 +413,87 @@ class AdminController extends Controller
 
         return Inertia::render('admin/Usage', [
             'rows' => $rows,
-            'messages' => ContactMessage::query()->latest()->limit(20)->get(),
+            'events' => UsageEvent::query()->with('user:id,email')->latest()->paginate(20),
         ]);
+    }
+
+    public function destroyUsageEvent(UsageEvent $event): RedirectResponse
+    {
+        $event->delete();
+
+        return back()->with('success', 'Usage event deleted.');
+    }
+
+    public function documents(): Response
+    {
+        return Inertia::render('admin/Documents', [
+            'documents' => GeneratedDocument::query()->with('user:id,name,email')->latest()->paginate(20),
+        ]);
+    }
+
+    public function updateDocument(SaveGeneratedDocumentRequest $request, GeneratedDocument $document): RedirectResponse
+    {
+        $document->update(['title' => $request->string('title')->toString()]);
+
+        return back()->with('success', 'Document updated.');
+    }
+
+    public function destroyDocument(GeneratedDocument $document): RedirectResponse
+    {
+        if ($document->private_file_path) {
+            Storage::disk('local')->delete($document->private_file_path);
+        }
+
+        $document->delete();
+
+        return back()->with('success', 'Document deleted.');
+    }
+
+    public function settings(): Response
+    {
+        return Inertia::render('admin/Settings', [
+            'settings' => Setting::query()->orderBy('key')->get(),
+        ]);
+    }
+
+    public function storeSetting(SaveSettingRequest $request): RedirectResponse
+    {
+        Setting::query()->create($request->safe()->only(['key', 'value']));
+
+        return back()->with('success', 'Setting saved.');
+    }
+
+    public function updateSetting(SaveSettingRequest $request, Setting $setting): RedirectResponse
+    {
+        $setting->update($request->safe()->only(['key', 'value']));
+
+        return back()->with('success', 'Setting updated.');
+    }
+
+    public function destroySetting(Setting $setting): RedirectResponse
+    {
+        $setting->delete();
+
+        return back()->with('success', 'Setting deleted.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function purchasePayload(SavePurchaseRequest $request, ?Purchase $existing = null): array
+    {
+        return [
+            'user_id' => $request->integer('user_id'),
+            'template_id' => $request->integer('template_id'),
+            'amount' => $request->integer('amount'),
+            'currency' => strtoupper($request->string('currency')->toString()),
+            'payment_provider' => 'stripe',
+            'payment_reference' => $request->input('payment_reference') ?: null,
+            'status' => $request->string('status')->toString(),
+            'paid_at' => $request->string('status')->toString() === PurchaseStatus::Paid->value
+                ? ($existing?->paid_at ?? now())
+                : null,
+        ];
     }
 
     /**

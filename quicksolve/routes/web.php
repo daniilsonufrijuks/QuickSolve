@@ -64,8 +64,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/billing', [AdminController::class, 'updateBilling'])->name('billing.update');
     Route::post('/billing/sync', [AdminController::class, 'syncBilling'])->name('billing.sync');
     Route::get('/users', [AdminController::class, 'users'])->name('users');
+    Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
     Route::put('/users/{user}', [AdminController::class, 'updateUser'])->name('users.update');
+    Route::delete('/users/{user}', [AdminController::class, 'destroyUser'])->name('users.destroy');
     Route::get('/contacts', [AdminController::class, 'contacts'])->name('contacts');
+    Route::post('/contacts', [AdminController::class, 'storeContact'])->name('contacts.store');
+    Route::put('/contacts/{message}', [AdminController::class, 'updateContact'])->name('contacts.update');
     Route::post('/contacts/{message}/read', [AdminController::class, 'markContactRead'])->name('contacts.read');
     Route::delete('/contacts/{message}', [AdminController::class, 'destroyContact'])->name('contacts.destroy');
     Route::get('/tools', [AdminController::class, 'tools'])->name('tools');
@@ -83,9 +87,20 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/templates/{template}/toggle', [AdminController::class, 'toggleTemplate'])->name('templates.toggle');
     Route::delete('/templates/{template}', [AdminController::class, 'destroyTemplate'])->name('templates.destroy');
     Route::get('/purchases', [AdminController::class, 'purchases'])->name('purchases');
+    Route::post('/purchases', [AdminController::class, 'storePurchase'])->name('purchases.store');
+    Route::put('/purchases/{purchase}', [AdminController::class, 'updatePurchase'])->name('purchases.update');
     Route::post('/purchases/{purchase}/refund', [AdminController::class, 'refundPurchase'])->name('purchases.refund');
+    Route::delete('/purchases/{purchase}', [AdminController::class, 'destroyPurchase'])->name('purchases.destroy');
     Route::get('/subscriptions', [AdminController::class, 'subscriptions'])->name('subscriptions');
     Route::get('/usage', [AdminController::class, 'usage'])->name('usage');
+    Route::delete('/usage/{event}', [AdminController::class, 'destroyUsageEvent'])->name('usage.destroy');
+    Route::get('/documents', [AdminController::class, 'documents'])->name('documents');
+    Route::put('/documents/{document}', [AdminController::class, 'updateDocument'])->name('documents.update');
+    Route::delete('/documents/{document}', [AdminController::class, 'destroyDocument'])->name('documents.destroy');
+    Route::get('/settings', [AdminController::class, 'settings'])->name('settings');
+    Route::post('/settings', [AdminController::class, 'storeSetting'])->name('settings.store');
+    Route::put('/settings/{setting}', [AdminController::class, 'updateSetting'])->name('settings.update');
+    Route::delete('/settings/{setting}', [AdminController::class, 'destroySetting'])->name('settings.destroy');
 });
 
 require __DIR__.'/settings.php';

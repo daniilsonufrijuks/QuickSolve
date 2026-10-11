@@ -1,16 +1,28 @@
 <script setup lang="ts">
 import AdminNav from '@/components/admin/AdminNav.vue';
+import BarChart from '@/components/admin/BarChart.vue';
+import HBarChart from '@/components/admin/HBarChart.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
 defineProps<{
-    stats: Record<string, number>;
+    stats: {
+        totals: Record<string, number>;
+        activity: Array<Record<string, string | number>>;
+        purchase_status: Array<{ label: string; value: number }>;
+        top_tools: Array<{ label: string; value: number }>;
+        revenue: Array<Record<string, string | number>>;
+    };
     billing: {
         configured: boolean;
         pro_price_id: string | null;
         business_price_id: string | null;
     };
 }>();
+
+function euros(cents: number) {
+    return `€${(cents / 100).toFixed(2)}`;
+}
 </script>
 
 <template>
@@ -20,10 +32,36 @@ defineProps<{
             <AdminNav />
             <h1 class="title">Administration</h1>
             <div class="cards">
-                <div v-for="(value, key) in stats" :key="key" class="card">
+                <div v-for="(value, key) in stats.totals" :key="key" class="card">
                     <p class="label">{{ String(key).replaceAll('_', ' ') }}</p>
-                    <p class="title">{{ value }}</p>
+                    <p class="figure">{{ key === 'revenue_paid' ? euros(value) : value }}</p>
                 </div>
+            </div>
+            <div class="charts">
+                <section class="card">
+                    <h2 class="heading">Activity, 14 days</h2>
+                    <BarChart
+                        :series="stats.activity"
+                        :keys="[
+                            { name: 'signups', color: '#2563eb' },
+                            { name: 'events', color: '#0f766e' },
+                            { name: 'purchases', color: '#c2410c' },
+                        ]"
+                    />
+                </section>
+                <section class="card">
+                    <h2 class="heading">Paid template revenue, 14 days</h2>
+                    <BarChart :series="stats.revenue" :keys="[{ name: 'paid', color: '#7c3aed' }]" />
+                    <p class="copy">Values are cents stored for each paid purchase.</p>
+                </section>
+                <section class="card">
+                    <h2 class="heading">Purchases by status</h2>
+                    <HBarChart :items="stats.purchase_status" color="#c2410c" />
+                </section>
+                <section class="card">
+                    <h2 class="heading">Tool opens, 30 days</h2>
+                    <HBarChart :items="stats.top_tools" />
+                </section>
             </div>
             <section class="card">
                 <p class="label">Stripe prices</p>
@@ -48,15 +86,24 @@ defineProps<{
 }
 
 .cards {
-    @apply grid gap-3 sm:grid-cols-3;
+    @apply grid gap-3 sm:grid-cols-3 xl:grid-cols-4;
+}
+
+.charts {
+    @apply grid gap-4 lg:grid-cols-2;
 }
 
 .card {
-    @apply space-y-2 rounded-xl border p-4;
+    @apply space-y-3 rounded-xl border p-4;
 }
 
 .label {
     @apply text-sm capitalize text-slate-600 dark:text-slate-300;
+}
+
+.figure,
+.heading {
+    @apply text-xl font-semibold;
 }
 
 .copy,

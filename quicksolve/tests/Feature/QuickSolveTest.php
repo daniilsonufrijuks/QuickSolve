@@ -447,9 +447,34 @@ test('admins can save billing settings, manage users, and mark refunds', functio
 
     expect(app(PlanPriceResolver::class)->idFor('pro'))->toBe('price_abc123');
 
+    $this->actingAs($admin)->get('/admin')->assertOk()->assertInertia(fn ($page) => $page
+        ->has('stats.totals.users')
+        ->has('stats.activity')
+        ->has('stats.top_tools')
+        ->has('stats.purchase_status')
+        ->has('stats.revenue'));
+
     $this->actingAs($admin)->get('/admin/users')->assertOk();
-    $this->actingAs($admin)->put('/admin/users/'.$member->id, ['is_admin' => true])->assertRedirect();
+    $this->actingAs($admin)->put('/admin/users/'.$member->id, [
+        'name' => $member->name,
+        'email' => $member->email,
+        'is_admin' => true,
+        'email_verified' => true,
+    ])->assertRedirect();
     expect($member->fresh()->is_admin)->toBeTrue();
+
+    $this->actingAs($admin)->post('/admin/users', [
+        'name' => 'Pat Member',
+        'email' => 'pat@example.com',
+        'password' => 'password',
+        'is_admin' => false,
+        'email_verified' => true,
+    ])->assertRedirect();
+
+    $created = User::query()->where('email', 'pat@example.com')->first();
+    expect($created)->not->toBeNull();
+    $this->actingAs($admin)->delete('/admin/users/'.$created->id)->assertRedirect();
+    expect(User::query()->where('email', 'pat@example.com')->exists())->toBeFalse();
 
     $message = ContactMessage::query()->create([
         'name' => 'Ada',
@@ -467,6 +492,43 @@ test('admins can save billing settings, manage users, and mark refunds', functio
 
     $this->actingAs($admin)->post('/admin/purchases/'.$purchase->id.'/refund')->assertRedirect();
     expect($purchase->fresh()->status->value)->toBe('refunded');
+
+    $this->actingAs($admin)->post('/admin/purchases', [
+        'user_id' => $member->id,
+        'template_id' => $purchase->template_id,
+        'amount' => 1200,
+        'currency' => 'EUR',
+        'status' => 'paid',
+    ])->assertRedirect();
+
+    expect(Purchase::query()->where('user_id', $member->id)->where('amount', 1200)->exists())->toBeTrue();
+
+    $this->actingAs($admin)->post('/admin/settings', [
+        'key' => 'admin.note',
+        'value' => 'keep this short',
+    ])->assertRedirect();
+    expect(Setting::get('admin.note'))->toBe('keep this short');
+
+    $document = GeneratedDocument::factory()->create(['user_id' => $member->id]);
+    $this->actingAs($admin)->put('/admin/documents/'.$document->id, ['title' => 'Renamed invoice'])->assertRedirect();
+    expect($document->fresh()->title)->toBe('Renamed invoice');
+
+    $event = UsageEvent::query()->create([
+        'user_id' => $member->id,
+        'tool_slug' => 'profit-margin-calculator',
+        'usage_type' => 'tool_opened',
+    ]);
+    $this->actingAs($admin)->delete('/admin/usage/'.$event->id)->assertRedirect();
+    expect(UsageEvent::query()->whereKey($event->id)->exists())->toBeFalse();
+
+    $this->actingAs($admin)->post('/admin/contacts', [
+        'name' => 'Bo',
+        'email' => 'bo@example.com',
+        'subject' => 'Quote',
+        'message' => 'Can you help?',
+        'is_read' => false,
+    ])->assertRedirect();
+    expect(ContactMessage::query()->where('email', 'bo@example.com')->exists())->toBeTrue();
 });
 
 function stripeWebhook(object $testCase, array $payload)
