@@ -1,0 +1,836 @@
+# Cursor AI Master Prompt — QuickSolve
+
+## Laravel + Vue.js + MySQL
+
+Act as a senior full-stack engineer, Laravel architect, Vue.js developer, UI/UX designer, and SaaS product strategist.
+
+Build **QuickSolve**, a modern, monetizable web platform that combines:
+
+1. Free online utilities to attract organic search traffic.
+2. Premium B2B tools to generate recurring revenue.
+3. Digital downloads to generate one-time sales.
+
+The application must be a functional, production-minded MVP, not just a landing page or UI prototype.
+
+---
+
+# 1. Technology Stack
+
+Use this stack:
+
+### Backend
+
+* PHP 8.3 or a version compatible with the installed Laravel version.
+* Laravel 12 or the latest compatible stable Laravel version.
+* Laravel REST API architecture.
+* Laravel Sanctum for authentication.
+* MySQL 8+.
+* Laravel Eloquent ORM.
+* Laravel Form Requests for validation.
+* Laravel Policies and Gates for authorization.
+* Laravel Queues for background tasks where appropriate.
+* Laravel Scheduler for recurring maintenance tasks.
+* Laravel filesystem for private downloads.
+* PHPUnit or Pest for automated tests.
+
+### Frontend
+
+* Vue 3.
+* TypeScript.
+* Composition API with `<script setup>`.
+* Vite.
+* Vue Router.
+* Pinia for shared state when needed.
+* Tailwind CSS.
+* shadcn-vue or a compatible accessible component library.
+* Lucide icons for Vue.
+
+### Integrations
+
+* Stripe for subscriptions and one-time purchases.
+* Laravel Cashier for Stripe subscription management, if compatible with the selected Laravel version.
+* Supabase is NOT required; MySQL is the primary database.
+* An optional AI provider for product-description generation.
+* A transactional email provider for receipts and notifications.
+
+Use compatible, stable package versions. Inspect the existing repository before installing packages or replacing files.
+
+Use a Laravel API backend and a Vue SPA frontend. Configure Laravel Sanctum correctly for first-party SPA authentication, including CSRF protection, session cookies, CORS, and trusted stateful domains.
+
+If the repository already uses Laravel with Vue and Inertia, preserve that architecture unless there is a strong reason to migrate. Do not introduce unnecessary architectural complexity.
+
+Requirements:
+
+* RESTful API endpoints under `/api/v1`.
+* Consistent JSON response structures.
+* Server-side validation.
+* Centralized exception handling.
+* Eloquent models and relationships.
+* Database migrations and seeders.
+* API authentication and authorization.
+* Pagination for listings.
+* Rate limiting for expensive operations.
+* Environment-based configuration.
+* Separate development and production settings.
+
+Never expose private keys, Stripe secrets, AI provider keys, or other server credentials in the Vue frontend.
+
+## 3. Brand and UI Design
+
+Brand: **QuickSolve**
+
+Tagline: "Small tools. Smarter business."
+
+Create a polished, modern SaaS interface.
+
+Visual direction:
+
+* White and light-gray backgrounds.
+* Navy typography.
+* Blue primary accent.
+* Subtle borders and restrained shadows.
+* Rounded cards and consistent spacing.
+* Professional typography.
+* Responsive layouts.
+* Accessible forms and navigation.
+* Fast-loading pages.
+* Minimal animations.
+* No excessive gradients or generic AI landing page aesthetics.
+
+Create reusable Vue components:
+
+* AppHeader
+* AppFooter
+* MainNavigation
+* ToolCard
+* TemplateCard
+* SearchInput
+* CategoryFilter
+* PriceBadge
+* PricingCard
+* FormField
+* Modal
+* ToastNotification
+* Pagination
+* LoadingState
+* EmptyState
+* ErrorState
+* ConfirmDialog
+
+Ensure the interface works on desktop, tablet, and mobile.
+
+## 4. Pages and Routes
+
+Implement these public pages:
+
+* `/` — Home
+* `/tools` — Tools directory
+* `/tools/:slug` — Individual tool
+* `/templates` — Digital downloads marketplace
+* `/templates/:slug` — Product details
+* `/pricing` — Subscription plans
+* `/about` — About QuickSolve
+* `/contact` — Contact form
+* `/privacy` — Privacy policy
+* `/terms` — Terms of service
+
+Authenticated pages:
+
+* `/login`
+* `/register`
+* `/dashboard`
+* `/dashboard/profile`
+* `/dashboard/subscription`
+* `/dashboard/purchases`
+* `/dashboard/downloads`
+* `/dashboard/documents`
+
+Create a clear, consistent navigation system and appropriate route guards for authenticated pages.
+
+Do not rely on frontend route guards for security. Enforce authorization on the Laravel backend as well.
+
+## 5. Homepage
+
+Build a polished homepage with:
+
+### Hero
+
+Headline: "Everything you need to run your small business."
+
+Supporting text:
+"Calculate profits, create business documents, generate product descriptions, and access practical templates — all in one place."
+
+Buttons:
+
+* Explore Free Tools
+* Browse Templates
+
+Include a search bar to discover tools.
+
+### Additional sections
+
+* Featured free tools.
+* Popular business tools.
+* Best-selling templates.
+* Benefits of using QuickSolve.
+* How it works.
+* Pricing overview.
+* Frequently asked questions.
+* Footer with product, support, and legal links.
+
+Display clear Free and Pro labels.
+
+Use original marketing copy. Do not fabricate customer testimonials, user counts, ratings, or business credentials.
+
+## 6. Tools Directory
+
+Route: `/tools`
+
+Build a searchable tools directory.
+
+Categories:
+
+* Calculators
+* E-commerce
+* Text and content
+* Business productivity
+* Converters
+
+Features:
+
+* Search by name and description.
+* Filter by category.
+* Filter by free or premium.
+* Sort by name and popularity.
+* Paginated results.
+* Responsive card grid.
+* Individual SEO-friendly tool pages.
+* Related tools.
+
+Implement filtering and pagination on the backend when appropriate.
+
+Create a database-driven tools catalog rather than hardcoding every listing in the Vue components.
+
+## 7. Implement Three Functional Tools
+
+### Tool A: Profit Margin Calculator
+
+Route: `/tools/profit-margin-calculator`
+
+Implement this tool primarily in Vue for instant calculations without unnecessary API requests.
+
+Inputs:
+
+* Selling price.
+* Product cost.
+* Shipping cost.
+* Packaging cost.
+* Marketplace fees.
+* Payment processing fees.
+* Currency.
+
+Outputs:
+
+* Total cost.
+* Profit per sale.
+* Profit margin.
+* Markup percentage.
+* Break-even selling price.
+
+Requirements:
+
+* Real-time calculations.
+* Input validation.
+* Handle zero values and invalid inputs.
+* Reset button.
+* Copy-results button.
+* Clear calculation explanations.
+* Example scenarios.
+* Educational content and FAQs.
+* Responsive layout.
+
+Use decimal-safe calculations where financial precision matters. Define percentage-based and fixed fees explicitly so that fee calculations are not ambiguous.
+
+Add automated tests for the calculation logic.
+
+### Tool B: Product Description Generator
+
+Route: `/tools/product-description-generator`
+
+Build a functional product-content generator for online sellers.
+
+Inputs:
+
+* Product name.
+* Product category.
+* Product features.
+* Target audience.
+* Tone of voice.
+* Description length.
+* Output format.
+
+Outputs:
+
+* Product title.
+* Short description.
+* Full description.
+* Bullet-point features.
+* Optional call to action.
+
+Backend requirements:
+
+* Create a provider-independent service interface.
+* Implement an AI provider adapter using server-side configuration.
+* Validate requests through Laravel Form Requests.
+* Store API credentials only in the backend environment.
+* Add configurable request limits.
+* Record usage for authenticated users.
+* Provide helpful error states when the AI provider is unavailable.
+* Provide a clearly labeled demo mode when no API credentials are configured.
+
+Do not return fabricated output while claiming a live AI request succeeded.
+
+Free and premium usage limits must be enforced on the server.
+
+### Tool C: Invoice Generator
+
+Route: `/tools/invoice-generator`
+
+Create a working invoice builder.
+
+Inputs:
+
+* Business details.
+* Customer details.
+* Invoice number.
+* Issue date.
+* Due date.
+* Currency.
+* Line items.
+* Quantity.
+* Unit price.
+* Tax rate.
+* Notes.
+* Payment instructions.
+
+Features:
+
+* Add and remove line items.
+* Automatically calculate subtotals, taxes, and totals.
+* Live invoice preview.
+* Professional invoice styling.
+* Print support.
+* PDF export.
+* Input validation.
+* Save invoice documents for authenticated users.
+
+Use a reliable PDF generation library compatible with Laravel.
+
+Allow guest users to create an invoice without requiring registration. Require authentication only for persistent cloud storage or other account-based features.
+
+Clearly explain that the tool generates documents and does not process payments or guarantee tax compliance.
+
+## 8. Digital Downloads Marketplace
+
+Routes:
+
+* `/templates`
+* `/templates/:slug`
+
+Create a database-driven storefront.
+
+Initial sample products:
+
+1. Small Business Finance Tracker — €19.
+2. Freelance Business Starter Kit — €15.
+3. E-commerce Profit Spreadsheet — €19.
+
+Categories:
+
+* Business spreadsheets.
+* Freelance templates.
+* E-commerce resources.
+* Business planners.
+* Invoice templates.
+
+Each product must include:
+
+* Name.
+* Slug.
+* Description.
+* Price in minor currency units.
+* Currency.
+* Category.
+* Preview image.
+* Downloadable file reference.
+* Publication status.
+* Created and updated timestamps.
+
+Product details page:
+
+* Product preview.
+* Full description.
+* What's included.
+* Price.
+* Purchase button.
+* Related products.
+
+Create real downloadable sample assets before enabling purchases. Do not sell nonexistent files or use fake download URLs.
+
+Protect paid downloads using Laravel authorization and private storage. After verifying payment, generate a short-lived signed download URL or stream the file through an authorized backend endpoint.
+
+Only customers with a valid purchase entitlement may download purchased files.
+
+## 9. Pricing and Subscriptions
+
+Route: `/pricing`
+
+Create three initial plans:
+
+### Free
+
+* Access to free calculators.
+* Basic utilities.
+* Limited generator usage.
+
+### Pro — €9/month
+
+* Higher generation limits.
+* Premium utilities.
+* Selected premium features.
+
+### Business — €19/month
+
+* Pro features.
+* Higher usage limits.
+* Additional business tools and exports.
+
+Store plan configuration and Stripe Price IDs in server-side configuration or the database as appropriate.
+
+Requirements:
+
+* Stripe Checkout.
+* Subscription management.
+* Subscription cancellation.
+* Billing portal.
+* Verified webhook processing.
+* Subscription status synchronization.
+* Graceful handling of expired or canceled subscriptions.
+* Server-side feature entitlement checks.
+* Clear billing terms.
+
+Use Laravel Cashier if compatible.
+
+Do not activate premium access based only on a frontend redirect or query parameter.
+
+Support one-time digital purchases independently of subscription purchases.
+
+Initially use Stripe test mode. Clearly document the steps required to activate live billing.
+
+## 10. MySQL Database Schema
+
+Create Laravel migrations, Eloquent models, factories, and seeders for these entities.
+
+### users
+
+* id
+* name
+* email
+* password
+* email_verified_at
+* timestamps
+
+Use Laravel's standard authentication fields and conventions.
+
+### categories
+
+* id
+* name
+* slug
+* description
+* timestamps
+
+### tools
+
+* id
+* category_id
+* name
+* slug
+* description
+* icon
+* access_type
+* is_featured
+* is_published
+* metadata JSON where useful
+* timestamps
+
+### templates
+
+* id
+* category_id
+* name
+* slug
+* description
+* price in integer minor units
+* currency
+* preview_image
+* private_file_path
+* is_published
+* timestamps
+
+### purchases
+
+* id
+* user_id
+* template_id
+* amount in integer minor units
+* currency
+* payment_provider
+* payment_reference
+* status
+* paid_at
+* timestamps
+
+### subscriptions
+
+Use Laravel Cashier's recommended tables and conventions when Cashier is installed. Otherwise implement a compatible subscription schema with customer IDs, price IDs, status, billing period, and cancellation details.
+
+### usage_events
+
+* id
+* user_id nullable for guest usage
+* tool_slug
+* usage_type
+* metadata JSON where appropriate
+* created_at
+
+### generated_documents
+
+* id
+* user_id
+* document_type
+* title
+* private_file_path nullable
+* structured_data JSON
+* timestamps
+
+Add:
+
+* Appropriate indexes.
+* Foreign keys.
+* Unique constraints.
+* Correct deletion behavior.
+* Decimal-safe financial calculations or integer minor units for stored money.
+* Database transactions for payment-related updates.
+* Authorization policies for private records.
+
+Never store plaintext passwords, card details, API secrets, or unnecessary sensitive information.
+
+Do not use a custom subscriptions table if it conflicts with the installed billing package. Follow the package's documented schema.
+
+## 11. API Design
+
+Create versioned endpoints under `/api/v1`.
+
+Example public endpoints:
+
+GET `/api/v1/tools`
+
+GET `/api/v1/tools/{slug}`
+
+GET `/api/v1/categories`
+
+GET `/api/v1/templates`
+
+GET `/api/v1/templates/{slug}`
+
+POST `/api/v1/tools/product-description-generator/generate`
+
+Authenticated endpoints:
+
+GET `/api/v1/user`
+
+GET `/api/v1/dashboard`
+
+GET `/api/v1/purchases`
+
+GET `/api/v1/subscription`
+
+POST `/api/v1/invoices`
+
+GET `/api/v1/invoices`
+
+GET `/api/v1/invoices/{id}`
+
+DELETE `/api/v1/invoices/{id}`
+
+POST `/api/v1/billing/checkout`
+
+POST `/api/v1/billing/portal`
+
+POST `/api/v1/templates/{id}/checkout`
+
+GET `/api/v1/downloads/{purchaseId}`
+
+Adapt endpoints when required by Laravel Sanctum, Stripe, or the existing project architecture.
+
+Use:
+
+* API Resources where useful.
+* Form Request validation.
+* Policies for access control.
+* Consistent HTTP status codes.
+* Pagination.
+* Rate limiting.
+* Meaningful error responses.
+
+Payment webhooks must use the provider's required signature verification and must not depend on a logged-in browser session.
+
+## 12. Authentication and Security
+
+Implement Laravel Sanctum authentication appropriate for a first-party Vue SPA.
+
+Features:
+
+* Registration.
+* Login.
+* Logout.
+* Current-user endpoint.
+* Password reset.
+* Email verification where configured.
+* Protected dashboard.
+* Account profile management.
+
+Security requirements:
+
+* Use Laravel's password hashing.
+* Configure CSRF protection.
+* Configure allowed CORS origins explicitly.
+* Enforce authorization server-side.
+* Validate all input.
+* Rate-limit expensive endpoints.
+* Protect file downloads.
+* Verify payment webhooks.
+* Never trust prices sent by the client.
+* Never grant access based on unverified payment status.
+* Do not log secrets.
+* Do not expose private files through the public web directory.
+* Prevent mass assignment vulnerabilities.
+* Use database transactions where consistency matters.
+
+## 13. SEO Requirements
+
+Organic search is a core acquisition strategy.
+
+Implement:
+
+* Server-rendered or pre-rendered public landing and tool pages where practical.
+* Unique page titles and meta descriptions.
+* Canonical URLs.
+* XML sitemap.
+* robots.txt.
+* Open Graph metadata.
+* Semantic HTML.
+* Breadcrumb navigation.
+* Internal links to related tools.
+* Useful original explanatory content.
+* Descriptive headings.
+* Mobile responsiveness.
+* Fast initial page loading.
+
+Because a Vue SPA may not provide ideal indexing by itself, assess SEO rendering before choosing the final frontend delivery strategy.
+
+Prefer a solution that preserves the Laravel + Vue + MySQL stack while ensuring public tool pages have crawlable, meaningful HTML. If SSR or pre-rendering is necessary, document and implement the simplest compatible approach.
+
+Do not create hundreds of low-quality pages or fabricate ratings, reviews, and structured-data claims.
+
+## 14. Analytics and Monetization Preparation
+
+Prepare reusable components for:
+
+* Ad placements.
+* Affiliate recommendations.
+* Sponsored listings.
+* Tool usage analytics.
+* Conversion tracking.
+
+Do not insert fake advertisements or fabricated affiliate links.
+
+Respect applicable privacy and consent requirements. Avoid tracking personal data unnecessarily.
+
+Track useful aggregate events such as:
+
+* Tool opened.
+* Calculation completed.
+* Generator used.
+* Template viewed.
+* Checkout started.
+* Purchase completed.
+
+Ensure analytics failures never break the primary functionality.
+
+## 15. Admin Panel
+
+Build a simple protected administration area for managing the platform.
+
+Admin capabilities:
+
+* View dashboard statistics.
+* Create and edit tools.
+* Publish and unpublish tools.
+* Manage categories.
+* Create and edit templates.
+* Upload private downloadable assets.
+* View purchase records.
+* View subscription statuses.
+* Inspect usage metrics.
+
+Implement role-based authorization on the backend.
+
+Do not rely on hiding admin navigation links as a security measure. Provide a safe method for creating the initial administrator and never hardcode production admin credentials.
+
+## 16. Testing and Code Quality
+
+Write automated tests for:
+
+* Profit calculator logic.
+* Invoice calculations.
+* Request validation.
+* Authentication.
+* Authorization.
+* Private document access.
+* Download entitlement checks.
+* Checkout session creation.
+* Payment webhook processing.
+* Premium feature limits.
+
+Use database factories and isolated test data.
+
+Run the available:
+
+* PHP tests.
+* Laravel Pint or configured formatter.
+* PHP static analysis if installed.
+* ESLint.
+* TypeScript type checking.
+* Frontend tests if configured.
+* Production frontend build.
+
+Fix errors and document any tests that require external credentials.
+
+Do not claim tests have passed unless they have actually been executed.
+
+## 17. Environment Configuration
+
+Create documented `.env.example` files for the backend and frontend as appropriate.
+
+Backend variables should include:
+
+APP_NAME=QuickSolve
+APP_URL=http://localhost
+FRONTEND_URL=http://localhost:5173
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=QuickSolve
+DB_USERNAME=root
+DB_PASSWORD=
+
+STRIPE_KEY=
+STRIPE_SECRET=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRO_PRICE_ID=
+STRIPE_BUSINESS_PRICE_ID=
+
+AI_PROVIDER_API_KEY=
+
+Configure any frontend-exposed variables with the framework's appropriate public prefix only when they are genuinely public.
+
+Never put server secrets into Vue environment variables.
+
+Document MySQL setup, Laravel configuration, migrations, seeding, local development, queue workers, webhook testing, and deployment.
+
+## 18. Development Plan
+
+Implement the project in phases.
+
+### Phase 1 — Foundation
+
+* Inspect repository.
+* Establish Laravel and Vue architecture.
+* Configure MySQL.
+* Set up migrations and seeders.
+* Implement layout, navigation, and reusable UI.
+* Build the homepage and tools directory.
+
+### Phase 2 — Functional tools
+
+* Implement profit calculator.
+* Implement invoice generator.
+* Add PDF export.
+* Build the tools API.
+* Write calculation tests.
+
+### Phase 3 — Premium generator and marketplace
+
+* Implement product-description generation.
+* Add usage tracking.
+* Build template catalog and product pages.
+* Create real sample download files.
+* Implement private download authorization.
+
+### Phase 4 — Monetization
+
+* Add Sanctum authentication.
+* Integrate Stripe test mode.
+* Implement subscription and purchase flows.
+* Verify webhooks.
+* Enforce premium entitlements.
+* Build the customer dashboard.
+
+### Phase 5 — Administration and SEO
+
+* Implement admin functionality.
+* Add SEO metadata and sitemap.
+* Optimize public page rendering.
+* Add analytics.
+* Review accessibility and responsive behavior.
+
+### Phase 6 — Verification
+
+* Run migrations against a test database.
+* Seed demonstration data.
+* Run backend and frontend tests.
+* Run production builds.
+* Fix runtime errors.
+* Verify security-sensitive flows.
+* Document deployment.
+
+Do not skip a phase's essential functionality simply to produce a visually impressive demo.
+
+## 19. Final Deliverables
+
+Provide:
+
+1. A working Laravel + Vue.js + MySQL application.
+2. All required migrations and seeders.
+3. Eloquent models and relationships.
+4. Controllers, services, policies, and API routes.
+5. Vue pages, reusable components, and routing.
+6. Authentication and authorization.
+7. Working calculator and invoice generator.
+8. AI generator with honest demo behavior when unconfigured.
+9. Digital marketplace with secure downloads.
+10. Stripe test-mode integration.
+11. Automated tests.
+12. `.env.example` and setup instructions.
+13. MySQL installation and migration instructions.
+14. Deployment documentation.
+15. A list of implemented features and remaining tasks.
+
+Start by inspecting the repository and identifying the installed PHP, Laravel, Node.js, Vue, and MySQL setup.
+
+Then present a short implementation plan and begin building the application. Work incrementally, inspect the result of each phase, and fix issues before proceeding.
+
+The final product must be functional, maintainable, secure by design, SEO-conscious, and prepared for monetization. Prioritize a reliable MVP over unnecessary complexity.
