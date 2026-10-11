@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <Head title="About" />
     <MarketingLayout>
         <article class="sm2nijf">
             <h1 class="s15bg7bs">About QuickSolve</h1>

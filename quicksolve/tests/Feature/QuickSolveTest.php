@@ -976,6 +976,44 @@ test('home chat drops links that are not QuickSolve paths', function () {
         ->assertJsonMissing(['href' => 'https://evil.example/steal']);
 });
 
+test('public pages send unique titles, open graph tags, and json-ld', function () {
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('QuickSolve — Small tools. Smarter business.', false)
+        ->assertSee('twitter:card', false)
+        ->assertSee('application/ld+json', false)
+        ->assertSee('FAQPage', false)
+        ->assertSee('name="robots" content="index,follow"', false);
+});
+
+test('tool search results are noindex and canonical to the catalog', function () {
+    $this->get('/tools?q=invoice')
+        ->assertOk()
+        ->assertSee('noindex,follow', false)
+        ->assertSee('rel="canonical" href="'.url('/tools').'"', false);
+});
+
+test('robots.txt blocks private areas and points to the sitemap', function () {
+    $this->get('/robots.txt')
+        ->assertOk()
+        ->assertSee('Disallow: /dashboard', false)
+        ->assertSee('Disallow: /admin', false)
+        ->assertSee('Sitemap: '.url('/sitemap.xml'), false);
+
+    $this->get('/sitemap.xml')
+        ->assertOk()
+        ->assertSee(url('/tools'), false)
+        ->assertSee(url('/pricing'), false);
+});
+
+test('signed-in dashboard pages ask crawlers not to index', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get('/dashboard')
+        ->assertOk()
+        ->assertSee('noindex,nofollow', false);
+});
+
 function stripeWebhook(object $testCase, array $payload)
 {
     $body = json_encode($payload);

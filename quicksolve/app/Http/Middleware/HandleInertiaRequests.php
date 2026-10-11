@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Services\Billing\PlanResolver;
+use App\Support\Seo;
+use Closure;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -26,6 +28,15 @@ class HandleInertiaRequests extends Middleware
     public function version(Request $request): ?string
     {
         return parent::version($request);
+    }
+
+    public function handle(Request $request, Closure $next)
+    {
+        if (Seo::isPrivate($request)) {
+            view()->share(Seo::privateViewData($request));
+        }
+
+        return parent::handle($request, $next);
     }
 
     /**

@@ -3,7 +3,7 @@ import TemplateCard from '@/components/marketing/TemplateCard.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import type { SharedData } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Link, useForm, usePage } from '@inertiajs/vue3';
 
 defineProps<{
     template: {
@@ -26,9 +26,6 @@ const form = useForm({});
 </script>
 
 <template>
-    <Head :title="template.name">
-        <meta head-key="description" name="description" :content="template.description" />
-    </Head>
     <MarketingLayout>
         <article class="sjip7j4">
             <div>

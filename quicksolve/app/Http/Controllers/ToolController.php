@@ -21,6 +21,8 @@ class ToolController extends Controller
     {
         $tools = $catalog->paginate($request->only(['q', 'category', 'access', 'sort']));
 
+        $searching = $request->filled('q');
+
         return Seo::page('tools/Index', [
             'filters' => [
                 'q' => $request->string('q')->toString(),
@@ -37,7 +39,9 @@ class ToolController extends Controller
                     'total' => $tools->total(),
                 ],
             ],
-        ], 'Free and premium business tools', 'Search calculators, writing tools, and document builders for a small business.', '/tools');
+        ], 'Free and Pro business tools', 'Browse calculators, invoices, writing tools, and document builders. Guests can start without an account.', '/tools', [
+            'robots' => $searching ? 'noindex,follow' : 'index,follow',
+        ]);
     }
 
     public function show(Request $request, string $slug, UsageRecorder $usage, PlanResolver $plans, SubscriptionSyncer $syncer): Response
@@ -71,6 +75,11 @@ class ToolController extends Controller
             $trial = $plans->premiumTrialUsage($request->user(), $request);
         }
 
+        $path = '/tools/'.$tool->slug;
+        $description = Seo::describe($tool->long_description ?: $tool->description);
+        $faqs = is_array($tool->metadata['faqs'] ?? null) ? $tool->metadata['faqs'] : [];
+        $title = $tool->name;
+
         return Seo::page('tools/Show', [
             'tool' => (new ToolResource($tool))->resolve(),
             'related' => ToolResource::collection($related)->resolve(),
@@ -83,6 +92,13 @@ class ToolController extends Controller
             'premium' => $premium,
             'plan' => $plans->key($request->user()),
             'business' => $plans->isBusiness($request->user()),
-        ], $tool->name, $tool->description, '/tools/'.$tool->slug);
+        ], $title, $description, $path, [
+            'jsonLd' => Seo::graph(array_filter([
+                Seo::organization(),
+                Seo::website(),
+                Seo::webPage($title.' — '.config('app.name'), $description, $path),
+                Seo::faqPage($faqs),
+            ])),
+        ]);
     }
 }

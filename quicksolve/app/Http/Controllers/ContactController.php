@@ -14,7 +14,7 @@ class ContactController extends Controller
 {
     public function create(): Response
     {
-        return Seo::page('Contact', [], 'Contact', 'Send a note to the QuickSolve team about tools, billing, or downloads.', '/contact');
+        return Seo::page('Contact', [], 'Contact', 'Write to QuickSolve about a tool, a download, or billing. Messages are stored and emailed to the configured inbox.', '/contact');
     }
 
     public function store(StoreContactRequest $request): RedirectResponse

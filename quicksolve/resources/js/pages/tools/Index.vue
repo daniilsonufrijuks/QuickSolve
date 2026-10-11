@@ -6,7 +6,7 @@ import SearchInput from '@/components/marketing/SearchInput.vue';
 import ToolCard from '@/components/marketing/ToolCard.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 
 const props = defineProps<{
@@ -23,9 +23,6 @@ function apply() {
 </script>
 
 <template>
-    <Head title="Tools">
-        <meta name="description" content="Search QuickSolve tools by name, category, and free or premium access." />
-    </Head>
     <MarketingLayout>
         <div class="s1w0rxx4">
             <nav class="syp5vk7" aria-label="Breadcrumb">

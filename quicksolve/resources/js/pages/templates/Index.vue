@@ -6,7 +6,7 @@ import SearchInput from '@/components/marketing/SearchInput.vue';
 import TemplateCard from '@/components/marketing/TemplateCard.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { reactive } from 'vue';
 
 const props = defineProps<{
@@ -23,7 +23,6 @@ function apply() {
 </script>
 
 <template>
-    <Head title="Templates" />
     <MarketingLayout>
         <div class="s1w0rxx4">
             <nav class="syp5vk7"><a href="/">Home</a> / Templates</nav>

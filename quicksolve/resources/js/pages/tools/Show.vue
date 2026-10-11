@@ -30,7 +30,7 @@ import UnitConverter from '@/components/tools/UnitConverter.vue';
 import UtmLinkBuilder from '@/components/tools/UtmLinkBuilder.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { defineAsyncComponent } from 'vue';
 
 const ImageResizer = defineAsyncComponent(() => import('@/components/tools/ImageResizer.vue'));
@@ -58,9 +58,6 @@ defineProps<{
 </script>
 
 <template>
-    <Head :title="tool.name">
-        <meta head-key="description" name="description" :content="tool.description" />
-    </Head>
     <MarketingLayout>
         <article class="s1w0rxx4">
             <nav class="s1bkxu62" aria-label="Breadcrumb">

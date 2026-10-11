@@ -19,6 +19,13 @@ class HomeController extends Controller
         $popularTools = Tool::query()->published()->with('category')->orderByDesc('popularity')->limit(6)->get();
         $templates = Template::query()->published()->with('category')->orderByDesc('is_featured')->orderBy('name')->limit(3)->get();
         $key = config('quicksolve.ai.api_key');
+        $title = 'QuickSolve — Small tools. Smarter business.';
+        $description = 'Free invoice PDFs, profit calculators, and honest writing help for small businesses. Five Pro-tool uses then a monthly plan. Templates download after Stripe payment.';
+        $faqs = [
+            ['q' => 'Do I need an account to use the calculators?', 'a' => 'No. The profit calculator and the invoice PDF work without an account. Saving invoices and buying templates requires a login.'],
+            ['q' => 'When is a description a live DeepSeek response?', 'a' => 'Only when a DeepSeek API key is configured on the server and the request succeeds. Otherwise the page stays in demo mode and says so.'],
+            ['q' => 'Does a checkout redirect activate Pro?', 'a' => 'No. Pro and Business stay inactive until Stripe confirms the subscription through a verified webhook.'],
+        ];
 
         return Seo::page('Home', [
             'featuredTools' => ToolResource::collection($featuredTools)->resolve(),
@@ -27,7 +34,15 @@ class HomeController extends Controller
             'plans' => $this->publicPlans(),
             'demoMode' => ! is_string($key) || $key === '',
             'chatUsage' => $plans->generatorUsage($request->user(), $request),
-        ], 'Small tools for everyday business work', 'Calculate profit, write product copy, build invoices, and download practical business templates.', '/');
+        ], $title, $description, '/', [
+            'branded' => true,
+            'jsonLd' => Seo::graph(array_filter([
+                Seo::organization(),
+                Seo::website(),
+                Seo::webPage($title, $description, '/', 'WebPage'),
+                Seo::faqPage($faqs),
+            ])),
+        ]);
     }
 
     /**

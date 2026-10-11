@@ -2,7 +2,7 @@
 import FormField from '@/components/marketing/FormField.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     name: '',
@@ -17,7 +17,6 @@ function submit() {
 </script>
 
 <template>
-    <Head title="Contact" />
     <MarketingLayout>
         <div class="s128wfte">
             <h1 class="s15bg7bs">Contact</h1>

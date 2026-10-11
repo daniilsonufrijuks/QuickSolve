@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <Head title="Terms of service" />
     <MarketingLayout>
         <article class="s66pyfr">
             <h1 class="s1lgo0y0">Terms of service</h1>

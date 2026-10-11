@@ -7,7 +7,7 @@ import TemplateCard from '@/components/marketing/TemplateCard.vue';
 import ToolCard from '@/components/marketing/ToolCard.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 defineProps<{
@@ -34,7 +34,6 @@ const faqs = [
 </script>
 
 <template>
-    <Head title="Home" />
     <MarketingLayout>
         <section class="s1665r3c">
             <div class="blobs" aria-hidden="true">

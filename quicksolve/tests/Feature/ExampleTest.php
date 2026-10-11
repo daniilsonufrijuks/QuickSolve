@@ -7,5 +7,7 @@ test('returns a successful response', function () {
             ->component('Home')
             ->has('demoMode')
             ->has('chatUsage')
-            ->has('plans'));
+            ->has('plans')
+            ->has('seo.title')
+            ->where('seo.robots', 'index,follow'));
 });

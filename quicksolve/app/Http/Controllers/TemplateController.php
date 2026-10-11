@@ -34,7 +34,9 @@ class TemplateController extends Controller
                     'total' => $templates->total(),
                 ],
             ],
-        ], 'Business templates', 'Download practical spreadsheets and starter kits for finance, freelance work, and online selling.', '/templates');
+        ], 'Business templates you actually download', 'Spreadsheets and starter kits stay private until Stripe confirms payment. There is no sample ZIP.', '/templates', [
+            'robots' => $request->filled('q') ? 'noindex,follow' : 'index,follow',
+        ]);
     }
 
     public function show(Request $request, string $slug, UsageRecorder $usage): Response
@@ -58,10 +60,39 @@ class TemplateController extends Controller
             ->limit(3)
             ->get();
 
+        $path = '/templates/'.$template->slug;
+        $title = $template->name;
+        $description = Seo::describe($template->description);
+        $image = $template->preview_image ? url($template->preview_image) : url('/images/og.svg');
+        $amount = number_format(((int) $template->price) / 100, 2, '.', '');
+
         return Seo::page('templates/Show', [
             'template' => (new TemplateResource($template))->resolve(),
             'related' => TemplateResource::collection($related)->resolve(),
             'owned' => $owned,
-        ], $template->name, $template->description, '/templates/'.$template->slug);
+        ], $title, $description, $path, [
+            'ogType' => 'product',
+            'image' => $image,
+            'imageAlt' => $template->name,
+            'jsonLd' => Seo::graph([
+                Seo::organization(),
+                Seo::website(),
+                [
+                    '@type' => 'Product',
+                    'name' => $template->name,
+                    'description' => $description,
+                    'image' => $image,
+                    'url' => url($path),
+                    'brand' => ['@id' => url('/').'#organization'],
+                    'offers' => [
+                        '@type' => 'Offer',
+                        'price' => $amount,
+                        'priceCurrency' => $template->currency ?: 'EUR',
+                        'availability' => $template->fileExists() ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                        'url' => url($path),
+                    ],
+                ],
+            ]),
+        ]);
     }
 }

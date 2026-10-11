@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import PricingCard from '@/components/marketing/PricingCard.vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Head } from '@inertiajs/vue3';
-
 defineProps<{
     plans: Array<any>;
     billingNote: string;
@@ -10,7 +8,6 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Pricing" />
     <MarketingLayout>
         <div class="s1w0rxx4">
             <h1 class="s15bg7bs">Pricing</h1>
