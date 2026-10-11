@@ -10,15 +10,28 @@ use Illuminate\Support\Facades\Log;
 
 class CheckoutService
 {
-    public function __construct(private readonly PlanPriceResolver $prices) {}
+    public function __construct(
+        private readonly PlanPriceResolver $prices,
+        private readonly PlanResolver $plans,
+    ) {}
 
     public function subscriptionCheckout(User $user, string $plan): string
     {
-        $this->assertConfigured();
-
         if (! in_array($plan, ['pro', 'business'], true)) {
             throw new BillingNotConfiguredException('Choose the Pro or Business plan.');
         }
+
+        $current = $this->plans->key($user);
+
+        if ($plan === 'pro' && in_array($current, ['pro', 'business'], true)) {
+            throw new BillingNotConfiguredException('This account already has an active paid subscription.');
+        }
+
+        if ($plan === 'business' && $current === 'business') {
+            throw new BillingNotConfiguredException('This account already has Business.');
+        }
+
+        $this->assertConfigured();
 
         $priceId = $this->prices->ensure($plan);
 

@@ -7,6 +7,7 @@ use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Resources\GeneratedDocumentResource;
 use App\Models\GeneratedDocument;
 use App\Services\Calculators\InvoiceCalculator;
+use App\Services\Documents\DocumentBranding;
 use App\Services\Documents\InvoicePdfGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,15 +19,18 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InvoiceController extends Controller
 {
-    public function pdf(StoreInvoiceRequest $request, InvoicePdfGenerator $pdf): Response
+    public function pdf(StoreInvoiceRequest $request, InvoicePdfGenerator $pdf, DocumentBranding $branding): Response
     {
-        return $pdf->download($request->validated());
+        return $pdf->download($this->documentInput($request), $branding->fromRequest($request));
     }
 
-    public function store(StoreInvoiceRequest $request, InvoiceCalculator $calculator, InvoicePdfGenerator $pdf): RedirectResponse|JsonResponse
+    public function store(StoreInvoiceRequest $request, InvoiceCalculator $calculator, InvoicePdfGenerator $pdf, DocumentBranding $branding): RedirectResponse|JsonResponse
     {
+        $input = $this->documentInput($request);
+        $options = $branding->fromRequest($request);
+
         try {
-            $calculated = $calculator->calculate($request->validated());
+            $calculated = $calculator->calculate($input);
         } catch (InvalidArgumentException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
@@ -36,13 +40,14 @@ class InvoiceController extends Controller
             'document_type' => DocumentType::Invoice,
             'title' => 'Invoice '.$request->string('invoice_number'),
             'structured_data' => [
-                'input' => $request->validated(),
+                'input' => $input,
                 'calculated' => collect($calculated)->except(['subtotal_minor', 'tax_minor', 'total_minor'])->all(),
+                'branding' => $options,
             ],
         ]);
 
         $path = 'invoices/'.$document->id.'.pdf';
-        $pdf->store($request->validated(), $calculated, $path);
+        $pdf->store($input, $calculated, $path, $options);
         $document->update(['private_file_path' => $path]);
 
         if ($request->expectsJson() || $request->is('api/*')) {
@@ -92,5 +97,13 @@ class InvoiceController extends Controller
         abort_unless($invoice->private_file_path && Storage::disk('local')->exists($invoice->private_file_path), 404);
 
         return Storage::disk('local')->download($invoice->private_file_path, str($invoice->title)->slug().'.pdf');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function documentInput(StoreInvoiceRequest $request): array
+    {
+        return $request->safe()->except(['accent_color', 'custom_footer']);
     }
 }

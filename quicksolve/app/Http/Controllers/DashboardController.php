@@ -7,6 +7,7 @@ use App\Http\Resources\GeneratedDocumentResource;
 use App\Http\Resources\PurchaseResource;
 use App\Models\GeneratedDocument;
 use App\Models\Purchase;
+use App\Models\UsageEvent;
 use App\Services\Billing\PlanResolver;
 use App\Services\Billing\PurchaseSyncer;
 use App\Services\Billing\SubscriptionSyncer;
@@ -14,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -21,7 +23,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->stripe_id && ! $user->subscription('default')?->valid()) {
+        if ($user->stripe_id && $plans->key($user) === 'free') {
             $syncer->syncUser($user);
             $user->refresh();
             $user->unsetRelation('subscriptions');
@@ -53,7 +55,7 @@ class DashboardController extends Controller
         $request->user()->refresh();
         $request->user()->unsetRelation('subscriptions');
 
-        $subscription = $request->user()->subscription('default');
+        $subscription = $plans->currentSubscription($request->user());
 
         return Inertia::render('dashboard/Subscription', [
             'plan' => $plans->summary($request->user()),
@@ -132,7 +134,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    public function documents(Request $request): Response
+    public function documents(Request $request, PlanResolver $plans): Response
     {
         $documents = GeneratedDocument::query()
             ->where('user_id', $request->user()->id)
@@ -148,6 +150,60 @@ class DashboardController extends Controller
                     'total' => $documents->total(),
                 ],
             ],
+            'business' => $plans->allowsActivityExport($request->user()),
         ]);
+    }
+
+    public function exportDocuments(Request $request, PlanResolver $plans): StreamedResponse
+    {
+        abort_unless($plans->allowsActivityExport($request->user()), 403);
+
+        $rows = GeneratedDocument::query()
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->get(['id', 'document_type', 'title', 'created_at']);
+
+        return response()->streamDownload(function () use ($rows): void {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['id', 'type', 'title', 'created_at']);
+
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row->id,
+                    $row->document_type->value,
+                    $row->title,
+                    $row->created_at?->toIso8601String(),
+                ]);
+            }
+
+            fclose($out);
+        }, 'quicksolve-documents.csv', ['Content-Type' => 'text/csv']);
+    }
+
+    public function exportUsage(Request $request, PlanResolver $plans): StreamedResponse
+    {
+        abort_unless($plans->allowsActivityExport($request->user()), 403);
+
+        $rows = UsageEvent::query()
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->limit(2000)
+            ->get(['id', 'tool_slug', 'usage_type', 'created_at']);
+
+        return response()->streamDownload(function () use ($rows): void {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['id', 'tool', 'usage_type', 'created_at']);
+
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row->id,
+                    $row->tool_slug,
+                    $row->usage_type,
+                    $row->created_at?->toIso8601String(),
+                ]);
+            }
+
+            fclose($out);
+        }, 'quicksolve-usage.csv', ['Content-Type' => 'text/csv']);
     }
 }

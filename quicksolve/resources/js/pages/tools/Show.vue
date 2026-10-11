@@ -4,6 +4,10 @@ import PriceBadge from '@/components/marketing/PriceBadge.vue';
 import ToolCard from '@/components/marketing/ToolCard.vue';
 import BreakEvenCalculator from '@/components/tools/BreakEvenCalculator.vue';
 import BusinessCardMaker from '@/components/tools/BusinessCardMaker.vue';
+import CashRunwayCalculator from '@/components/tools/CashRunwayCalculator.vue';
+import CoverLetterBuilder from '@/components/tools/CoverLetterBuilder.vue';
+import CvBuilder from '@/components/tools/CvBuilder.vue';
+import EmailTemplates from '@/components/tools/EmailTemplates.vue';
 import DateDifferenceCalculator from '@/components/tools/DateDifferenceCalculator.vue';
 import DescriptionGenerator from '@/components/tools/DescriptionGenerator.vue';
 import DiscountCalculator from '@/components/tools/DiscountCalculator.vue';
@@ -12,8 +16,11 @@ import HttpStatusLookup from '@/components/tools/HttpStatusLookup.vue';
 import InvoiceGenerator from '@/components/tools/InvoiceGenerator.vue';
 import JwtDecoder from '@/components/tools/JwtDecoder.vue';
 import MarketplaceFeeCalculator from '@/components/tools/MarketplaceFeeCalculator.vue';
+import PaymentLandingDate from '@/components/tools/PaymentLandingDate.vue';
 import ProfitCalculator from '@/components/tools/ProfitCalculator.vue';
+import ScopeChangeNote from '@/components/tools/ScopeChangeNote.vue';
 import QrCodeGenerator from '@/components/tools/QrCodeGenerator.vue';
+import QuoteBuilder from '@/components/tools/QuoteBuilder.vue';
 import RandomNumberGenerator from '@/components/tools/RandomNumberGenerator.vue';
 import RegexTester from '@/components/tools/RegexTester.vue';
 import RoasCalculator from '@/components/tools/RoasCalculator.vue';
@@ -45,6 +52,8 @@ defineProps<{
     trial: { used: number; limit: number; remaining: number; window: string; plan: string };
     demoMode: boolean;
     premium: boolean;
+    plan?: string;
+    business?: boolean;
 }>();
 </script>
 
@@ -72,13 +81,13 @@ defineProps<{
                 Free Pro trial: {{ trial.remaining }} of {{ trial.limit }} uses left after this visit.
             </p>
             <div v-if="locked" class="s200pe">
-                <EmptyState title="This tool is included with Pro" :message="trial.used >= trial.limit ? 'You have used the 5 free Pro trials on this browser or account. Subscribe to keep using PDF, image, timesheet, and business card tools.' : 'Premium tools stay locked until a verified subscription is active on the account.'" />
+                <EmptyState title="This tool is included with Pro" :message="trial.used >= trial.limit ? 'You have used the 5 free Pro trials on this browser or account. Subscribe to keep using PDF, image, timesheet, business card, CV, quotes, cover letters, cash runway, and email templates.' : 'Premium tools stay locked until a verified subscription is active on the account.'" />
                 <Button as-child class="s200pa"><Link href="/pricing">View plans</Link></Button>
             </div>
             <div v-else class="s200pe">
                 <ProfitCalculator v-if="tool.slug === 'profit-margin-calculator'" />
                 <DescriptionGenerator v-else-if="tool.slug === 'product-description-generator'" :usage="usage" :demo-mode="demoMode" />
-                <InvoiceGenerator v-else-if="tool.slug === 'invoice-generator'" />
+                <InvoiceGenerator v-else-if="tool.slug === 'invoice-generator'" :plan="plan" :business="business" />
                 <DiscountCalculator v-else-if="tool.slug === 'discount-calculator'" />
                 <FreelanceRateCalculator v-else-if="tool.slug === 'freelance-rate-calculator'" :premium="premium" />
                 <QrCodeGenerator v-else-if="tool.slug === 'qr-code-generator'" :branding="premium" />
@@ -97,6 +106,13 @@ defineProps<{
                 <BusinessCardMaker v-else-if="tool.slug === 'business-card-maker'" />
                 <RandomNumberGenerator v-else-if="tool.slug === 'random-number-generator'" />
                 <HttpStatusLookup v-else-if="tool.slug === 'http-status-code-lookup'" />
+                <CvBuilder v-else-if="tool.slug === 'cv-builder'" />
+                <EmailTemplates v-else-if="tool.slug === 'email-templates'" :usage="usage" :demo-mode="demoMode" />
+                <QuoteBuilder v-else-if="tool.slug === 'quote-builder'" :plan="plan" :business="business" />
+                <CoverLetterBuilder v-else-if="tool.slug === 'cover-letter'" />
+                <CashRunwayCalculator v-else-if="tool.slug === 'cash-runway-calculator'" />
+                <PaymentLandingDate v-else-if="tool.slug === 'payment-landing-date'" />
+                <ScopeChangeNote v-else-if="tool.slug === 'scope-change-note'" />
             </div>
 
             <section class="srtekoe">

@@ -7,7 +7,13 @@ import type { SharedData } from '@/types';
 import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+const props = defineProps<{
+    plan?: string;
+    business?: boolean;
+}>();
+
 const page = usePage<SharedData>();
+const isPro = computed(() => props.plan === 'pro' || props.plan === 'business');
 
 function printInvoice() {
     window.print();
@@ -28,6 +34,8 @@ const form = useForm({
     tax_rate: '0',
     notes: '',
     payment_instructions: '',
+    accent_color: '#1d4ed8',
+    custom_footer: '',
     items: [{ description: '', quantity: '1', unit_price: '0.00' }],
 });
 
@@ -67,6 +75,8 @@ function downloadPdf() {
         tax_rate: form.tax_rate,
         notes: form.notes,
         payment_instructions: form.payment_instructions,
+        accent_color: form.accent_color,
+        custom_footer: form.custom_footer,
     };
 
     Object.entries(fields).forEach(([name, value]) => {
@@ -135,6 +145,12 @@ function reset() {
                         <Button type="button" variant="ghost" :disabled="form.items.length === 1" @click="removeItem(index)">Remove</Button>
                     </div>
                 </div>
+                <FormField v-if="isPro" label="Accent colour" hint="Pro and Business apply this colour on the PDF heading.">
+                    <input v-model="form.accent_color" type="color" class="s1wl1yqe" />
+                </FormField>
+                <FormField v-if="props.business" label="Custom footer" hint="Business PDFs drop the QuickSolve line and can use your own footer.">
+                    <textarea v-model="form.custom_footer" rows="2" class="s1wl1yqe" />
+                </FormField>
                 <FormField label="Notes"><textarea v-model="form.notes" rows="2" class="s1wl1yqe" /></FormField>
                 <FormField label="Payment instructions"><textarea v-model="form.payment_instructions" rows="2" class="s1wl1yqe" /></FormField>
                 <div class="s1sdudaq">

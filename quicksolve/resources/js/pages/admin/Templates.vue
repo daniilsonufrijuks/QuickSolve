@@ -49,12 +49,17 @@ function resetForm() {
 }
 
 function save() {
+    const options = { forceFormData: true, onSuccess: resetForm };
+
     if (editingId.value) {
-        form.put(`/admin/templates/${editingId.value}`, { forceFormData: true });
+        form.transform((data) => ({ ...data, _method: 'put' })).post(`/admin/templates/${editingId.value}`, {
+            ...options,
+            onFinish: () => form.transform((data) => data),
+        });
         return;
     }
 
-    form.post('/admin/templates', { forceFormData: true });
+    form.post('/admin/templates', options);
 }
 </script>
 
@@ -70,9 +75,16 @@ function save() {
                     <FormField label="Category"><select v-model="form.category_id" class="field"><option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option></select></FormField>
                     <FormField label="Name" :error="form.errors.name"><input v-model="form.name" class="field" /></FormField>
                     <FormField label="Slug" :error="form.errors.slug"><input v-model="form.slug" class="field" /></FormField>
-                    <FormField label="Description"><textarea v-model="form.description" rows="4" class="field" /></FormField>
+                    <FormField label="Description" :error="form.errors.description"><textarea v-model="form.description" rows="4" class="field" /></FormField>
                     <FormField label="What's included" hint="One item per line."><textarea v-model="form.whats_included" rows="3" class="field" /></FormField>
                     <FormField label="Price in cents" :error="form.errors.price"><input v-model.number="form.price" type="number" class="field" /></FormField>
+                    <FormField label="Currency">
+                        <select v-model="form.currency" class="field">
+                            <option>EUR</option>
+                            <option>USD</option>
+                            <option>GBP</option>
+                        </select>
+                    </FormField>
                     <FormField label="File" :error="form.errors.file"><input type="file" @change="form.file = ($event.target as HTMLInputElement).files?.[0] ?? null" /></FormField>
                     <label class="check"><input v-model="form.is_published" type="checkbox" /> Published</label>
                     <div class="actions">

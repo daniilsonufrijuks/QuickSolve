@@ -10,6 +10,7 @@ use App\Models\Tool;
 use App\Queries\ToolCatalog;
 use App\Services\Analytics\UsageRecorder;
 use App\Services\Billing\PlanResolver;
+use App\Services\Billing\SubscriptionSyncer;
 use App\Support\Seo;
 use Illuminate\Http\Request;
 use Inertia\Response;
@@ -39,9 +40,16 @@ class ToolController extends Controller
         ], 'Free and premium business tools', 'Search calculators, writing tools, and document builders for a small business.', '/tools');
     }
 
-    public function show(Request $request, string $slug, UsageRecorder $usage, PlanResolver $plans): Response
+    public function show(Request $request, string $slug, UsageRecorder $usage, PlanResolver $plans, SubscriptionSyncer $syncer): Response
     {
         $tool = Tool::query()->published()->with('category')->where('slug', $slug)->firstOrFail();
+        $user = $request->user();
+
+        if ($user?->stripe_id && $plans->key($user) === 'free') {
+            $syncer->syncUser($user);
+            $user->unsetRelation('subscriptions');
+        }
+
         $usage->record('tool_opened', $tool->slug, $request->user(), $request);
 
         $related = Tool::query()
@@ -67,12 +75,14 @@ class ToolController extends Controller
             'tool' => (new ToolResource($tool))->resolve(),
             'related' => ToolResource::collection($related)->resolve(),
             'locked' => $locked,
-            'usage' => $tool->slug === 'product-description-generator'
+            'usage' => in_array($tool->slug, ['product-description-generator', 'email-templates'], true)
                 ? $plans->generatorUsage($request->user(), $request)
                 : null,
             'trial' => $trial,
             'demoMode' => ! is_string(config('quicksolve.ai.api_key')) || config('quicksolve.ai.api_key') === '',
             'premium' => $premium,
+            'plan' => $plans->key($request->user()),
+            'business' => $plans->isBusiness($request->user()),
         ], $tool->name, $tool->description, '/tools/'.$tool->slug);
     }
 }

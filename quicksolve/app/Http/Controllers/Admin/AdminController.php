@@ -12,6 +12,7 @@ use App\Http\Requests\Admin\SaveCategoryRequest;
 use App\Http\Requests\Admin\SaveContactMessageRequest;
 use App\Http\Requests\Admin\SaveGeneratedDocumentRequest;
 use App\Http\Requests\Admin\SavePurchaseRequest;
+use App\Http\Requests\Admin\SaveSubscriptionRequest;
 use App\Http\Requests\Admin\SaveSettingRequest;
 use App\Http\Requests\Admin\SaveTemplateRequest;
 use App\Http\Requests\Admin\SaveToolRequest;
@@ -393,11 +394,62 @@ class AdminController extends Controller
         return back()->with('success', 'Purchase marked refunded. This does not send a Stripe refund by itself.');
     }
 
-    public function subscriptions(): Response
+    public function subscriptions(PlanPriceResolver $prices): Response
     {
         return Inertia::render('admin/Subscriptions', [
             'subscriptions' => Subscription::query()->with('user:id,name,email')->latest()->paginate(20),
+            'users' => User::query()->orderBy('email')->get(['id', 'name', 'email']),
+            'prices' => [
+                'pro' => $prices->idFor('pro'),
+                'business' => $prices->idFor('business'),
+            ],
         ]);
+    }
+
+    public function storeSubscription(SaveSubscriptionRequest $request): RedirectResponse
+    {
+        $subscription = Subscription::query()->create($this->subscriptionPayload($request));
+        $this->syncSubscriptionItem($subscription);
+
+        return back()->with('success', 'Subscription saved. This grants plan access in QuickSolve and does not charge Stripe.');
+    }
+
+    public function updateSubscription(SaveSubscriptionRequest $request, Subscription $subscription): RedirectResponse
+    {
+        $subscription->update($this->subscriptionPayload($request));
+        $this->syncSubscriptionItem($subscription);
+
+        return back()->with('success', 'Subscription updated. This does not change Stripe billing by itself.');
+    }
+
+    public function cancelSubscription(Subscription $subscription): RedirectResponse
+    {
+        if ($this->isLiveStripeSubscription($subscription->stripe_id)) {
+            try {
+                $subscription->cancelNow();
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return back()->with('error', 'Stripe could not cancel this subscription. The local record was not changed.');
+            }
+
+            return back()->with('success', 'Stripe subscription canceled immediately.');
+        }
+
+        $subscription->update([
+            'stripe_status' => 'canceled',
+            'ends_at' => now(),
+        ]);
+
+        return back()->with('success', 'Local subscription marked canceled. This did not call Stripe.');
+    }
+
+    public function destroySubscription(Subscription $subscription): RedirectResponse
+    {
+        $subscription->items()->delete();
+        $subscription->delete();
+
+        return back()->with('success', 'Subscription record deleted. A live Stripe subscription is not canceled by this delete.');
     }
 
     public function usage(): Response
@@ -475,6 +527,43 @@ class AdminController extends Controller
         $setting->delete();
 
         return back()->with('success', 'Setting deleted.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function subscriptionPayload(SaveSubscriptionRequest $request): array
+    {
+        $endsAt = $request->input('ends_at');
+
+        return [
+            'user_id' => $request->integer('user_id'),
+            'type' => $request->string('type')->toString() ?: 'default',
+            'stripe_id' => $request->string('stripe_id')->toString(),
+            'stripe_status' => $request->string('stripe_status')->toString(),
+            'stripe_price' => $request->string('stripe_price')->toString(),
+            'quantity' => $request->integer('quantity'),
+            'ends_at' => is_string($endsAt) && $endsAt !== '' ? $endsAt : null,
+        ];
+    }
+
+    private function syncSubscriptionItem(Subscription $subscription): void
+    {
+        $item = $subscription->items()->first();
+
+        $subscription->items()->updateOrCreate(
+            ['stripe_id' => $item?->stripe_id ?: 'si_admin_'.$subscription->id],
+            [
+                'stripe_product' => $item?->stripe_product ?: 'prod_admin',
+                'stripe_price' => (string) $subscription->stripe_price,
+                'quantity' => $subscription->quantity ?? 1,
+            ],
+        );
+    }
+
+    private function isLiveStripeSubscription(string $stripeId): bool
+    {
+        return (bool) preg_match('/^sub_[0-9][A-Za-z0-9]{10,}$/', $stripeId);
     }
 
     /**

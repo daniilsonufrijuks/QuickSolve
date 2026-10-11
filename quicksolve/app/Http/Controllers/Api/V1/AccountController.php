@@ -52,7 +52,7 @@ class AccountController extends Controller
 
     public function subscription(Request $request, PlanResolver $plans): JsonResponse
     {
-        $subscription = $request->user()->subscription('default');
+        $subscription = $plans->currentSubscription($request->user());
 
         return response()->json([
             'data' => [

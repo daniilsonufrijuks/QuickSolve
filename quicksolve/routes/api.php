@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\CatalogController;
+use App\Http\Controllers\Api\V1\EmailDraftController;
 use App\Http\Controllers\Api\V1\ProductDescriptionController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\DownloadController;
@@ -17,6 +18,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/templates/{slug}', [CatalogController::class, 'template']);
 
     Route::post('/tools/product-description-generator/generate', [ProductDescriptionController::class, 'store'])
+        ->middleware('throttle:generator');
+    Route::post('/tools/email-templates/generate', [EmailDraftController::class, 'store'])
         ->middleware('throttle:generator');
 
     Route::post('/analytics/events', [AnalyticsController::class, 'store'])

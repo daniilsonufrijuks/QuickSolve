@@ -32,7 +32,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
                 <section class="s1rk4jvz">
                     <p class="syp5vk7">Template downloads</p>
                     <p class="si3k1n0">{{ counts.purchases }}</p>
-                    <p class="swr3obg">{{ counts.documents }} saved invoices</p>
+                    <p class="swr3obg">{{ counts.documents }} saved documents</p>
                 </section>
             </div>
             <section>
@@ -45,7 +45,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
                 </ul>
             </section>
             <section>
-                <h2 class="sreg0xd">Recent invoices</h2>
+                <h2 class="sreg0xd">Recent documents</h2>
                 <ul class="sa19kgt">
                     <li v-for="document in documents" :key="document.id">{{ document.title }}</li>
                     <li v-if="documents.length === 0" class="s1frj40x">No saved invoices yet.</li>

@@ -15,6 +15,7 @@ use App\Services\Billing\PurchaseFulfiller;
 use App\Services\Billing\PurchaseSyncer;
 use App\Services\Billing\StripePlanCatalog;
 use App\Services\Billing\SubscriptionSyncer;
+use App\Services\Documents\DocumentBranding;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -348,6 +349,53 @@ test('freelance rate reports require a pro or business plan', function () {
         ->assertSee('Hourly rate: 57.39');
 });
 
+test('an older active subscription still unlocks pro when a newer checkout is incomplete', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $tool = Tool::factory()->premium()->create();
+    $user = User::factory()->create();
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_first_pro',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+        'created_at' => now()->subDay(),
+    ]);
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_second_incomplete',
+        'stripe_status' => 'incomplete',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+        'created_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->get('/tools/'.$tool->slug)
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('locked', false)
+            ->where('plan', 'pro')
+            ->where('trial.window', 'subscription'));
+});
+
+test('an active pro account cannot start a second pro checkout', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $user = User::factory()->create();
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_already_pro',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/billing/checkout', ['plan' => 'pro'])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'This account already has an active paid subscription.');
+});
+
 test('premium tools stay available for five trial uses then lock', function () {
     $tool = Tool::factory()->premium()->create();
 
@@ -407,6 +455,8 @@ test('the new catalog tools and templates are published', function () {
     }
 
     $this->get('/tools/business-card-maker')->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', 'business-card-maker')->where('locked', false));
+    $this->get('/tools/cv-builder')->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', 'cv-builder')->where('locked', false));
+    $this->get('/tools/email-templates')->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', 'email-templates')->where('locked', false));
 
     $this->get('/templates/freelancer-finance-spreadsheet')->assertOk();
     $this->get('/templates/business-launch-checklist')->assertOk();
@@ -501,6 +551,43 @@ test('admins can save billing settings, manage users, and mark refunds', functio
         'status' => 'paid',
     ])->assertRedirect();
 
+    $this->actingAs($admin)->get('/admin/subscriptions')->assertOk();
+    $this->actingAs($admin)->post('/admin/subscriptions', [
+        'user_id' => $member->id,
+        'type' => 'default',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ])->assertRedirect();
+
+    $subscription = \Laravel\Cashier\Subscription::query()->where('user_id', $member->id)->first();
+    expect($subscription)->not->toBeNull()
+        ->and($subscription->stripe_status)->toBe('active')
+        ->and($subscription->items()->count())->toBe(1);
+
+    $this->actingAs($admin)->put('/admin/subscriptions/'.$subscription->id, [
+        'user_id' => $member->id,
+        'type' => 'default',
+        'stripe_id' => $subscription->stripe_id,
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_business',
+        'quantity' => 1,
+    ])->assertRedirect();
+    expect($subscription->fresh()->stripe_price)->toBe('price_business');
+
+    $this->actingAs($admin)->post('/admin/subscriptions/'.$subscription->id.'/cancel')->assertRedirect();
+    expect($subscription->fresh()->stripe_status)->toBe('canceled');
+
+    $this->actingAs($admin)->delete('/admin/subscriptions/'.$subscription->id)->assertRedirect();
+    expect(\Laravel\Cashier\Subscription::query()->whereKey($subscription->id)->exists())->toBeFalse();
+
+    $this->actingAs($member)->post('/admin/subscriptions', [
+        'user_id' => $member->id,
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ])->assertForbidden();
+
     expect(Purchase::query()->where('user_id', $member->id)->where('amount', 1200)->exists())->toBeTrue();
 
     $this->actingAs($admin)->post('/admin/settings', [
@@ -529,6 +616,307 @@ test('admins can save billing settings, manage users, and mark refunds', functio
         'is_read' => false,
     ])->assertRedirect();
     expect(ContactMessage::query()->where('email', 'bo@example.com')->exists())->toBeTrue();
+});
+
+test('cv pdf downloads during trial uses and lock after five visits', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $this->seed();
+
+    $payload = [
+        'template' => 'classic',
+        'full_name' => 'Ada North',
+        'headline' => 'Designer',
+        'email' => 'ada@example.com',
+        'skills' => ['Figma'],
+        'experience' => [['role' => 'Designer', 'company' => 'Studio', 'dates' => '2024', 'details' => 'Shipped UI']],
+        'education' => [['school' => 'Art school', 'credential' => 'BA', 'dates' => '2020']],
+    ];
+
+    $this->get('/tools/cv-builder')->assertOk()->assertInertia(fn ($page) => $page->where('locked', false));
+    $this->post('/tools/cv-builder/pdf', $payload)->assertOk();
+
+    for ($uses = 1; $uses < 5; $uses++) {
+        $this->get('/tools/cv-builder')->assertOk();
+    }
+
+    $this->get('/tools/cv-builder')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true));
+
+    $pro = User::factory()->create();
+    $pro->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_cv',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', $payload)->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'executive'])->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'timeline'])->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'creative'])->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'split'])->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'banner'])->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'mosaic'])->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'unknown'])->assertSessionHasErrors('template');
+});
+
+test('email template drafts download during trial uses', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $this->seed();
+
+    $payload = [
+        'template' => 'quote',
+        'from_name' => 'Ada North',
+        'from_role' => 'Studio lead',
+        'to_name' => 'Kai',
+        'company' => 'North Studio',
+        'topic' => 'catalog redesign',
+        'amount' => '1200 EUR',
+    ];
+
+    $this->get('/tools/email-templates')->assertOk()->assertInertia(fn ($page) => $page->where('locked', false));
+    $this->post('/tools/email-templates/download', $payload)
+        ->assertOk()
+        ->assertHeader('content-type', 'text/plain; charset=UTF-8')
+        ->assertSee('Quote for North Studio')
+        ->assertSee('1200 EUR');
+
+    $pro = User::factory()->create();
+    $pro->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_email',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($pro)->post('/tools/email-templates/download', [...$payload, 'template' => 'follow-up'])
+        ->assertOk()
+        ->assertSee('Following up on catalog redesign');
+
+    $this->actingAs($pro)->post('/tools/email-templates/download', [...$payload, 'tone' => 'formal'])
+        ->assertOk()
+        ->assertSee('Dear Kai')
+        ->assertSee('Quotation for North Studio')
+        ->assertSee('Yours sincerely');
+
+    $this->actingAs($pro)->post('/tools/email-templates/download', [...$payload, 'template' => 'thank-you', 'tone' => 'formal'])
+        ->assertOk()
+        ->assertSee('Thank you for North Studio');
+
+    $this->actingAs($pro)->post('/tools/email-templates/download', [...$payload, 'template' => 'apology'])
+        ->assertOk()
+        ->assertSee('Sorry about catalog redesign');
+
+    $this->actingAs($pro)->post('/tools/email-templates/download', [...$payload, 'template' => 'partnership', 'tone' => 'formal'])
+        ->assertOk()
+        ->assertSee('Proposal for collaboration');
+});
+
+test('email deepseek drafts stay in demo mode without a provider key', function () {
+    config(['quicksolve.ai.api_key' => null]);
+    $this->seed();
+
+    $this->postJson('/api/v1/tools/email-templates/generate', [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['topic', 'instruction', 'from_name', 'to_name', 'situation', 'tone']);
+
+    $response = $this->postJson('/api/v1/tools/email-templates/generate', [
+        'topic' => 'catalog redesign',
+        'situation' => 'sales',
+        'tone' => 'formal',
+        'length' => 'short',
+        'instruction' => 'Ask whether they want to go ahead',
+        'from_name' => 'Ada North',
+        'to_name' => 'Kai',
+        'company' => 'North Studio',
+        'facts' => 'Quote sent last week',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.mode', 'demo')
+        ->assertJsonPath('data.subject', 'Regarding catalog redesign');
+
+    expect($response->json('data.notice'))->toContain('Demo mode');
+    expect($response->json('data.body'))->toContain('Dear Kai');
+    expect(UsageEvent::query()->where('tool_slug', 'email-templates')->where('usage_type', 'generated')->count())->toBe(1);
+});
+
+test('a failed email provider does not return demo copy', function () {
+    config(['quicksolve.ai.api_key' => 'test-key']);
+    Http::fake(['*' => Http::response(['error' => 'unavailable'], 503)]);
+    $this->seed();
+
+    $this->postJson('/api/v1/tools/email-templates/generate', [
+        'topic' => 'catalog redesign',
+        'situation' => 'sales',
+        'tone' => 'casual',
+        'length' => 'short',
+        'instruction' => 'Write a follow-up',
+        'from_name' => 'Ada',
+        'to_name' => 'Kai',
+    ])->assertStatus(503);
+
+    expect(UsageEvent::query()->where('tool_slug', 'email-templates')->where('usage_type', 'generated')->count())->toBe(0);
+});
+
+test('admins can update a template without uploading a new file', function () {
+    $admin = User::factory()->admin()->create();
+    $template = Template::factory()->create([
+        'name' => 'Old pack',
+        'price' => 1900,
+        'currency' => 'EUR',
+        'is_published' => true,
+        'private_file_path' => 'templates/old-pack.csv',
+    ]);
+
+    $this->actingAs($admin)
+        ->post('/admin/templates/'.$template->id, [
+            '_method' => 'put',
+            'category_id' => $template->category_id,
+            'name' => 'Starter pack',
+            'slug' => $template->slug,
+            'description' => 'Updated description for the pack.',
+            'whats_included' => "Sheet\nNotes",
+            'price' => 2500,
+            'currency' => 'EUR',
+            'is_published' => '1',
+        ])
+        ->assertRedirect();
+
+    expect($template->fresh()->name)->toBe('Starter pack')
+        ->and($template->fresh()->price)->toBe(2500)
+        ->and($template->fresh()->whats_included)->toBe(['Sheet', 'Notes'])
+        ->and($template->fresh()->private_file_path)->toBe('templates/old-pack.csv');
+});
+
+test('payment landing date and scope change note are published premium tools', function () {
+    $this->seed();
+
+    foreach (['payment-landing-date', 'scope-change-note'] as $slug) {
+        $this->get('/tools/'.$slug)->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', $slug)->where('locked', false)->where('premium', true));
+    }
+
+    $this->postJson('/tools/payment-landing-date/calculate', [
+        'issue_date' => '2026-10-01',
+        'terms' => 'net_30',
+        'pay_run' => 'weekly',
+        'weekday' => 5,
+        'skip_weekends' => true,
+        'settlement_days' => 2,
+        'holiday_dates' => [],
+    ])->assertOk()
+        ->assertJsonPath('data.contractual_due', '2026-10-31')
+        ->assertJsonPath('data.likely_pay_date', '2026-11-06')
+        ->assertJsonPath('data.likely_land_date', '2026-11-09');
+
+    $this->postJson('/tools/payment-landing-date/calculate', [
+        'issue_date' => '2026-10-01',
+        'terms' => 'net_7',
+        'pay_run' => 'any',
+        'skip_weekends' => true,
+        'settlement_days' => 0,
+        'holiday_dates' => ['2026-10-08'],
+    ])->assertOk()
+        ->assertJsonPath('data.contractual_due', '2026-10-08')
+        ->assertJsonPath('data.likely_land_date', '2026-10-09');
+
+    $this->post('/tools/scope-change-note/pdf', [
+        'from_name' => 'Ada North',
+        'client_name' => 'Kai West',
+        'project_name' => 'Catalog site',
+        'agreed_work' => 'Five product templates.',
+        'extra_request' => 'Also migrate the old shop.',
+        'extra_amount' => '450.00',
+        'currency' => 'EUR',
+        'hold_until_confirmed' => '1',
+    ])->assertOk()->assertHeader('content-type', 'application/pdf');
+});
+
+test('quote builder cover letter and cash runway are published premium tools', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $this->seed();
+
+    foreach (['quote-builder', 'cover-letter', 'cash-runway-calculator'] as $slug) {
+        $this->get('/tools/'.$slug)->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', $slug)->where('locked', false)->where('premium', true));
+    }
+
+    $quote = [
+        'business_name' => 'North Studio',
+        'customer_name' => 'Kai West',
+        'quote_number' => 'Q-9',
+        'issue_date' => '2026-10-01',
+        'valid_until' => '2026-10-15',
+        'currency' => 'EUR',
+        'tax_rate' => 0,
+        'items' => [['description' => 'Catalog', 'quantity' => 1, 'unit_price' => 120]],
+    ];
+
+    $this->post('/tools/quote-builder/pdf', $quote)->assertOk();
+    $this->post('/tools/cover-letter/pdf', [
+        'full_name' => 'Ada North',
+        'recipient_name' => 'Kai West',
+        'company' => 'North Studio',
+        'role' => 'Designer',
+        'body' => 'I shipped the catalog redesign last quarter.',
+    ])->assertOk();
+
+    $pro = User::factory()->create();
+    $pro->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_quote',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($pro)->post('/quotes', $quote)->assertRedirect(route('dashboard.documents'));
+    expect(\App\Models\GeneratedDocument::query()->where('user_id', $pro->id)->where('document_type', 'quote')->count())->toBe(1);
+});
+
+test('document branding and csv export follow the plan', function () {
+    config([
+        'quicksolve.plans.pro.stripe_price_id' => 'price_pro',
+        'quicksolve.plans.business.stripe_price_id' => 'price_biz',
+    ]);
+
+    $free = User::factory()->create();
+    $pro = User::factory()->create();
+    $business = User::factory()->create();
+
+    $pro->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_brand_pro',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+    $business->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_brand_biz',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_biz',
+        'quantity' => 1,
+    ]);
+
+    $svc = app(DocumentBranding::class);
+
+    expect($svc->forUser($free, '#ff0000', 'Secret footer', 'invoice'))
+        ->toMatchArray(['accent' => '#0f172a', 'branded' => true, 'custom_footer' => ''])
+        ->and($svc->forUser($pro, '#1d4ed8', 'Secret footer', 'invoice'))
+        ->toMatchArray(['accent' => '#1d4ed8', 'branded' => true, 'custom_footer' => ''])
+        ->and($svc->forUser($business, '#1d4ed8', 'North Studio confidential', 'quote'))
+        ->toMatchArray(['accent' => '#1d4ed8', 'branded' => false, 'custom_footer' => 'North Studio confidential']);
+
+    $this->actingAs($pro)->get('/dashboard/documents/export')->assertForbidden();
+
+    $documents = $this->actingAs($business)->get('/dashboard/documents/export');
+    $documents->assertOk();
+    expect($documents->streamedContent())->toContain('id,type,title,created_at');
+
+    $usage = $this->actingAs($business)->get('/dashboard/usage/export');
+    $usage->assertOk();
+    expect($usage->streamedContent())->toContain('id,tool,usage_type,created_at');
 });
 
 function stripeWebhook(object $testCase, array $payload)

@@ -30,6 +30,8 @@ class StoreInvoiceRequest extends FormRequest
             'tax_rate' => ['required', 'numeric', 'min:0', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'payment_instructions' => ['nullable', 'string', 'max:2000'],
+            'accent_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'custom_footer' => ['nullable', 'string', 'max:500'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.description' => ['required', 'string', 'max:200'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.01', 'max:100000'],

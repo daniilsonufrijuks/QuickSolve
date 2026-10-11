@@ -7,6 +7,7 @@ use App\Http\Requests\SubscriptionCheckoutRequest;
 use App\Models\Template;
 use App\Services\Analytics\UsageRecorder;
 use App\Services\Billing\CheckoutService;
+use App\Services\Billing\PlanResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,11 +51,11 @@ class BillingController extends Controller
         return $redirect;
     }
 
-    public function cancel(Request $request, CheckoutService $checkout): RedirectResponse|JsonResponse
+    public function cancel(Request $request, CheckoutService $checkout, PlanResolver $plans): RedirectResponse|JsonResponse
     {
         try {
             $checkout->assertConfigured();
-            $subscription = $request->user()->subscription('default');
+            $subscription = $plans->currentSubscription($request->user());
 
             if (! $subscription || ! $subscription->valid()) {
                 return $this->failure($request, 'There is no active subscription to cancel.');

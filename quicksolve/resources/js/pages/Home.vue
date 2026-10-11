@@ -81,7 +81,7 @@ const faqs = [
                 </div>
                 <div>
                     <h2 class="s1cmvr70">Documents you can send</h2>
-                    <p class="s1nsjtrh">Invoices preview as you type, then export to PDF. Saving them is optional.</p>
+                    <p class="s1nsjtrh">Invoices stay free. Quotes, cover letters, and cash runway sit on Pro. Business drops the QuickSolve line on PDFs and adds CSV exports.</p>
                 </div>
                 <div>
                     <h2 class="s1cmvr70">Honest writing help</h2>
@@ -95,7 +95,7 @@ const faqs = [
             <ol class="s8emdm2">
                 <li class="spzmmle"><span class="s1d0sn9t">1</span><p class="s5t2knz">Start with a free tool</p><p class="sxuzv25">Run a calculation or draft an invoice without creating an account.</p></li>
                 <li class="spzmmle"><span class="s1d0sn9t">2</span><p class="s5t2knz">Keep what you want</p><p class="sxuzv25">Sign in to store invoices, or buy a template as a one-time download.</p></li>
-                <li class="spzmmle"><span class="s1d0sn9t">3</span><p class="s5t2knz">Upgrade only if the limit is in the way</p><p class="sxuzv25">Pro and Business raise the description allowance. Access changes after Stripe confirms payment.</p></li>
+                    <li class="spzmmle"><span class="s1d0sn9t">3</span><p class="s5t2knz">Upgrade only if the limit is in the way</p><p class="sxuzv25">Pro unlocks extra documents and colour on PDFs. Business adds unbranded files and CSV exports. Access changes after Stripe confirms payment.</p></li>
             </ol>
         </section>
 

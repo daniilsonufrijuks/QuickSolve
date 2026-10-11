@@ -11,17 +11,43 @@ class PlanResolver
 {
     public function key(?User $user): string
     {
+        $subscription = $this->currentSubscription($user);
+
+        if (! $subscription instanceof Subscription) {
+            return 'free';
+        }
+
+        return $this->keyForPrice($this->priceId($subscription)) ?? 'free';
+    }
+
+    public function currentSubscription(?User $user): ?Subscription
+    {
         if (! $user) {
-            return 'free';
+            return null;
         }
 
-        $subscription = $user->subscription('default');
+        $best = null;
+        $bestRank = -1;
 
-        if (! $subscription instanceof Subscription || ! $subscription->valid()) {
-            return 'free';
+        foreach ($user->subscriptions as $subscription) {
+            if (! $subscription instanceof Subscription || ! $subscription->valid()) {
+                continue;
+            }
+
+            $plan = $this->keyForPrice($this->priceId($subscription));
+            $rank = match ($plan) {
+                'business' => 2,
+                'pro' => 1,
+                default => 0,
+            };
+
+            if ($rank > $bestRank) {
+                $best = $subscription;
+                $bestRank = $rank;
+            }
         }
 
-        return $this->keyForPrice((string) $subscription->stripe_price) ?? 'free';
+        return $best;
     }
 
     public function keyForPrice(string $priceId): ?string
@@ -66,7 +92,7 @@ class PlanResolver
             $used = UsageEvent::query()
                 ->whereNull('user_id')
                 ->where('guest_hash', $hash)
-                ->where('tool_slug', 'product-description-generator')
+                ->whereIn('tool_slug', ['product-description-generator', 'email-templates'])
                 ->where('usage_type', 'generated')
                 ->where('created_at', '>=', now()->startOfDay())
                 ->count();
@@ -83,7 +109,7 @@ class PlanResolver
         $plan = $this->summary($user);
         $used = UsageEvent::query()
             ->where('user_id', $user->id)
-            ->where('tool_slug', 'product-description-generator')
+            ->whereIn('tool_slug', ['product-description-generator', 'email-templates'])
             ->where('usage_type', 'generated')
             ->where('created_at', '>=', now()->startOfMonth())
             ->count();
@@ -100,6 +126,26 @@ class PlanResolver
     public function allowsLongDescriptions(?User $user): bool
     {
         return in_array($this->key($user), ['pro', 'business'], true);
+    }
+
+    public function isBusiness(?User $user): bool
+    {
+        return $this->key($user) === 'business';
+    }
+
+    public function allowsDocumentBranding(?User $user): bool
+    {
+        return $this->allowsLongDescriptions($user);
+    }
+
+    public function allowsUnbrandedDocuments(?User $user): bool
+    {
+        return $this->isBusiness($user);
+    }
+
+    public function allowsActivityExport(?User $user): bool
+    {
+        return $this->isBusiness($user);
     }
 
     /**
@@ -177,5 +223,18 @@ class PlanResolver
     public function visitorHash(Request $request): string
     {
         return hash('sha256', ($request->ip() ?: '0.0.0.0').'|'.(string) $request->userAgent().'|'.config('app.key'));
+    }
+
+    private function priceId(Subscription $subscription): string
+    {
+        $priceId = (string) ($subscription->stripe_price ?: '');
+
+        if ($priceId !== '') {
+            return $priceId;
+        }
+
+        $itemPrice = $subscription->items()->orderBy('id')->value('stripe_price');
+
+        return is_string($itemPrice) ? $itemPrice : '';
     }
 }
