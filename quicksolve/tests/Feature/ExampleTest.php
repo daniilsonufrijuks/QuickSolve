@@ -1,7 +1,11 @@
 <?php
 
 test('returns a successful response', function () {
-    $response = $this->get('/');
-
-    $response->assertStatus(200)->assertSee('From QuickSolve', false);
+    $this->get('/')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Home')
+            ->has('demoMode')
+            ->has('chatUsage')
+            ->has('plans'));
 });

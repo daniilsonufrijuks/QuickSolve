@@ -919,6 +919,63 @@ test('document branding and csv export follow the plan', function () {
     expect($usage->streamedContent())->toContain('id,tool,usage_type,created_at');
 });
 
+test('home chat stays in demo mode without a provider key', function () {
+    config(['quicksolve.ai.api_key' => null]);
+
+    $this->postJson('/api/v1/home/chat', [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['message']);
+
+    $response = $this->postJson('/api/v1/home/chat', [
+        'message' => 'How do I make an invoice?',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.mode', 'demo')
+        ->assertJsonPath('data.links.0.href', '/tools/invoice-generator');
+
+    expect($response->json('data.notice'))->toContain('Demo mode')
+        ->and($response->json('data.reply'))->toContain('invoice generator')
+        ->and(UsageEvent::query()->where('tool_slug', 'home-chat')->where('usage_type', 'generated')->count())->toBe(1);
+});
+
+test('a failed home chat provider does not return demo copy', function () {
+    config(['quicksolve.ai.api_key' => 'test-key']);
+    Http::fake(['*' => Http::response(['error' => 'unavailable'], 503)]);
+
+    $this->postJson('/api/v1/home/chat', [
+        'message' => 'How do I make an invoice?',
+    ])->assertStatus(503);
+
+    expect(UsageEvent::query()->where('tool_slug', 'home-chat')->count())->toBe(0);
+});
+
+test('home chat drops links that are not QuickSolve paths', function () {
+    config(['quicksolve.ai.api_key' => 'test-key']);
+    Http::fake([
+        '*' => Http::response([
+            'choices' => [[
+                'message' => [
+                    'content' => json_encode([
+                        'reply' => 'Open the invoice generator.',
+                        'links' => [
+                            ['label' => 'Invoice', 'href' => '/tools/invoice-generator'],
+                            ['label' => 'Phish', 'href' => 'https://evil.example/steal'],
+                        ],
+                    ]),
+                ],
+            ]],
+        ]),
+    ]);
+
+    $this->postJson('/api/v1/home/chat', [
+        'message' => 'Where is the invoice tool?',
+    ])->assertOk()
+        ->assertJsonPath('data.mode', 'live')
+        ->assertJsonPath('data.links.0.href', '/tools/invoice-generator')
+        ->assertJsonMissing(['href' => 'https://evil.example/steal']);
+});
+
 function stripeWebhook(object $testCase, array $payload)
 {
     $body = json_encode($payload);

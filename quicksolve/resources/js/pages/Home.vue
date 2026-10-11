@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HomeAssistantChat from '@/components/marketing/HomeAssistantChat.vue';
 import HomePromoBanner from '@/components/marketing/HomePromoBanner.vue';
 import PricingCard from '@/components/marketing/PricingCard.vue';
 import SearchInput from '@/components/marketing/SearchInput.vue';
@@ -14,6 +15,8 @@ defineProps<{
     popularTools: Array<any>;
     templates: Array<any>;
     plans: Array<any>;
+    demoMode: boolean;
+    chatUsage: { used: number; limit: number; remaining: number; window: string; plan: string };
 }>();
 
 const query = ref('');
@@ -25,6 +28,7 @@ function search() {
 const faqs = [
     ['Do I need an account to use the calculators?', 'No. The profit calculator and the invoice PDF work without an account. Saving invoices and buying templates requires a login.'],
     ['When is a description a live DeepSeek response?', 'Only when a DeepSeek API key is configured on the server and the request succeeds. Otherwise the page stays in demo mode and says so.'],
+    ['Is the home chat live AI?', 'Only when a DeepSeek API key is configured. Without a key, replies are assembled on the server and labeled as a demo. Home chat counts toward the same writing allowance as product descriptions.'],
     ['Does a checkout redirect activate Pro?', 'No. Pro and Business stay inactive until Stripe confirms the subscription through a verified webhook.'],
 ];
 </script>
@@ -137,6 +141,8 @@ const faqs = [
                 </details>
             </div>
         </section>
+
+        <HomeAssistantChat :demo-mode="demoMode" :chat-usage="chatUsage" />
     </MarketingLayout>
 </template>
 

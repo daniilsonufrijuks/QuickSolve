@@ -9,6 +9,15 @@ use Laravel\Cashier\Subscription;
 
 class PlanResolver
 {
+    /**
+     * @var list<string>
+     */
+    private const GENERATOR_SLUGS = [
+        'product-description-generator',
+        'email-templates',
+        'home-chat',
+    ];
+
     public function key(?User $user): string
     {
         $subscription = $this->currentSubscription($user);
@@ -92,7 +101,7 @@ class PlanResolver
             $used = UsageEvent::query()
                 ->whereNull('user_id')
                 ->where('guest_hash', $hash)
-                ->whereIn('tool_slug', ['product-description-generator', 'email-templates'])
+                ->whereIn('tool_slug', self::GENERATOR_SLUGS)
                 ->where('usage_type', 'generated')
                 ->where('created_at', '>=', now()->startOfDay())
                 ->count();
@@ -109,7 +118,7 @@ class PlanResolver
         $plan = $this->summary($user);
         $used = UsageEvent::query()
             ->where('user_id', $user->id)
-            ->whereIn('tool_slug', ['product-description-generator', 'email-templates'])
+            ->whereIn('tool_slug', self::GENERATOR_SLUGS)
             ->where('usage_type', 'generated')
             ->where('created_at', '>=', now()->startOfMonth())
             ->count();
