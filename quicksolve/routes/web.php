@@ -43,6 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/subscription', [DashboardController::class, 'subscription'])->name('dashboard.subscription');
     Route::post('/dashboard/subscription/sync', [DashboardController::class, 'syncSubscription'])->name('dashboard.subscription.sync');
     Route::get('/dashboard/purchases', [DashboardController::class, 'purchases'])->name('dashboard.purchases');
+    Route::post('/dashboard/purchases/sync', [DashboardController::class, 'syncPurchases'])->name('dashboard.purchases.sync');
     Route::get('/dashboard/downloads', [DashboardController::class, 'downloads'])->name('dashboard.downloads');
     Route::get('/dashboard/documents', [DashboardController::class, 'documents'])->name('dashboard.documents');
 

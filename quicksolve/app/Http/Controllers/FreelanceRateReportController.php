@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreFreelanceRateReportRequest;
+use App\Services\Billing\PlanResolver;
 use App\Services\Calculators\FreelanceRateCalculator;
 
 class FreelanceRateReportController extends Controller
 {
-    public function __invoke(StoreFreelanceRateReportRequest $request, FreelanceRateCalculator $calculator)
+    public function __invoke(StoreFreelanceRateReportRequest $request, FreelanceRateCalculator $calculator, PlanResolver $plans)
     {
+        if (! $plans->allowsLongDescriptions($request->user())) {
+            $plans->consumePremiumTrial($request->user(), $request, 'freelance-rate-calculator');
+        }
+
         $result = $calculator->calculate($request->validated());
         $lines = [
             'QuickSolve freelance rate report',

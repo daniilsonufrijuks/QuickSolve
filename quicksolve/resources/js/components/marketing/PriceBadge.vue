@@ -3,7 +3,7 @@ defineProps<{ access: string }>();
 </script>
 
 <template>
-    <span class="s1lh8vfn" :class="access === 'premium' ? 'bg-blue-50 text-blue-800' : 'bg-slate-100 text-slate-700'">
+    <span class="s1lh8vfn" :class="access === 'premium' ? 'bg-blue-50 text-blue-800' : 'bg-slate-100 text-blue-800'">
         {{ access === 'premium' ? 'Pro' : 'Free' }}
     </span>
 </template>

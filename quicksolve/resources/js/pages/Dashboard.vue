@@ -38,7 +38,9 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' 
             <section>
                 <h2 class="sreg0xd">Recent purchases</h2>
                 <ul class="sa19kgt">
-                    <li v-for="purchase in purchases" :key="purchase.id">{{ purchase.template?.name }} — {{ purchase.formatted_amount }} ({{ purchase.status }})</li>
+                    <li v-for="purchase in purchases" :key="purchase.id">
+                        {{ purchase.template?.name }} — {{ purchase.formatted_amount }} ({{ purchase.status }})
+                    </li>
                     <li v-if="purchases.length === 0" class="s1frj40x">No purchases yet.</li>
                 </ul>
             </section>

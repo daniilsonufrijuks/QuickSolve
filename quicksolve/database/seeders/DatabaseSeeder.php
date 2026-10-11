@@ -20,6 +20,9 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Text and content', 'slug' => 'text-and-content', 'description' => 'Writing helpers for product pages and customer notes.'],
             ['name' => 'Business productivity', 'slug' => 'business-productivity', 'description' => 'Documents and routines for day-to-day operations.'],
             ['name' => 'Converters', 'slug' => 'converters', 'description' => 'Practical conversions for shipping and catalog data.'],
+            ['name' => 'Marketing and SEO', 'slug' => 'marketing-and-seo', 'description' => 'Previews and campaign helpers for pages and ads.'],
+            ['name' => 'Developer tools', 'slug' => 'developer-tools', 'description' => 'Small utilities that run in the browser.'],
+            ['name' => 'Everyday', 'slug' => 'everyday', 'description' => 'Simple converters and calendars for daily tasks.'],
         ];
 
         $templateCategories = [
@@ -153,16 +156,16 @@ class DatabaseSeeder extends Seeder
                 'slug' => 'pdf-viewer-editor',
                 'category' => 'business-productivity',
                 'name' => 'PDF Viewer and Editor',
-                'description' => 'Open a PDF in the browser, read each page, rotate pages, add a text note, and download the result.',
+                'description' => 'Open a PDF in the browser, read it, edit the wording or drop text on a page, and download a new file.',
                 'icon' => 'file-text',
                 'access_type' => AccessType::Premium,
                 'is_featured' => false,
                 'popularity' => 12,
-                'long_description' => 'This tool runs in your browser after a Pro or Business subscription is confirmed. The file is not uploaded to QuickSolve. You can read pages, rotate them, place a short text note, and download a new PDF. It is not a full layout program and it does not fill government forms or guarantee print fidelity.',
+                'long_description' => 'This tool runs in your browser after a Pro or Business subscription is confirmed. The file is not uploaded to QuickSolve. Page editor keeps the original layout and lets you click to add text boxes. Document editor extracts readable text so you can rewrite it like a simple Word file, then download a clean PDF. It does not fill government forms or keep complex fonts and images in document mode.',
                 'metadata' => [
                     'faqs' => [
                         ['q' => 'Does QuickSolve keep my PDF?', 'a' => 'No. The file stays in the browser session. Closing the tab discards it unless you download a copy.'],
-                        ['q' => 'Can I edit every kind of PDF?', 'a' => 'Password-protected files and some scanned-only documents cannot be changed here. You can still try to view pages that the browser can render.'],
+                        ['q' => 'Can I edit every kind of PDF?', 'a' => 'Password-protected files cannot be unlocked here. Scanned pages may show in the viewer but will not give much text to edit. Document mode rebuilds a new PDF from the wording you type.'],
                     ],
                 ],
             ],
@@ -183,6 +186,216 @@ class DatabaseSeeder extends Seeder
                     ],
                 ],
             ],
+            [
+                'slug' => 'break-even-calculator',
+                'category' => 'calculators',
+                'name' => 'Break-Even Calculator',
+                'description' => 'Find how many units you need to sell to cover fixed and variable costs.',
+                'icon' => 'calculator',
+                'access_type' => AccessType::Free,
+                'is_featured' => true,
+                'popularity' => 22,
+                'long_description' => 'Enter monthly or project fixed costs, the cost that changes with each unit, and the selling price. The result is the smallest whole number of units that covers those costs. Marketplace fees are not included; use the profit margin calculator when a platform takes a cut.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Does this include VAT?', 'a' => 'No. Enter amounts the way you want to compare them.'],
+                        ['q' => 'What if the price is below variable cost?', 'a' => 'There is no break-even volume. Raise the price or lower the variable cost.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'timesheet-calculator',
+                'category' => 'business-productivity',
+                'name' => 'Timesheet Calculator',
+                'description' => 'Add daily start and end times, subtract breaks, and total overtime for the week.',
+                'icon' => 'clock',
+                'access_type' => AccessType::Premium,
+                'is_featured' => false,
+                'popularity' => 18,
+                'long_description' => 'Times stay in your browser. Overtime is the minutes beyond the daily threshold you set. Overnight shifts are not supported. You can copy the totals or download a CSV.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is this payroll?', 'a' => 'No. It only totals hours. It does not apply wage rules for your country.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'serp-snippet-preview',
+                'category' => 'marketing-and-seo',
+                'name' => 'SERP Snippet Preview',
+                'description' => 'Preview how a page title, URL, and meta description may look in search results.',
+                'icon' => 'search',
+                'access_type' => AccessType::Free,
+                'is_featured' => true,
+                'popularity' => 21,
+                'long_description' => 'This is a layout sketch. Search engines can rewrite titles and descriptions. Character counts are a guide, not a guarantee of what a result page will show.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Will this rank my page?', 'a' => 'No. It only shows how your draft copy might wrap in a result listing.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'utm-link-builder',
+                'category' => 'marketing-and-seo',
+                'name' => 'UTM Link Builder',
+                'description' => 'Add source, medium, campaign, term, and content parameters to a campaign URL.',
+                'icon' => 'link',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 19,
+                'long_description' => 'The builder encodes the values and keeps any query string already on the page. It does not create a short link or record clicks.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Are empty fields included?', 'a' => 'No. Only fields you fill are added to the URL.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'marketplace-fee-calculator',
+                'category' => 'e-commerce',
+                'name' => 'Marketplace Fee Calculator',
+                'description' => 'Estimate marketplace and payment fees, then see profit and margin on one sale.',
+                'icon' => 'store',
+                'access_type' => AccessType::Free,
+                'is_featured' => true,
+                'popularity' => 24,
+                'long_description' => 'Example fee schedules are starting points. Edit the percentages and fixed amounts to match the live help page of the platform you use. Tax and currency conversion are not included.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Are the presets official rates?', 'a' => 'No. They are examples. Always check the marketplace fee page before you price a listing.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'roas-calculator',
+                'category' => 'e-commerce',
+                'name' => 'ROAS Calculator',
+                'description' => 'Calculate return on ad spend, profit after product cost, and a break-even ROAS.',
+                'icon' => 'megaphone',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 17,
+                'long_description' => 'ROAS is revenue divided by ad spend. Break-even ROAS uses revenue divided by revenue minus product cost. Wages, returns, and tax are not included.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is a 4x ROAS always profitable?', 'a' => 'No. If product cost is high, you can still lose money at a high ROAS. Read the profit line.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'jwt-decoder',
+                'category' => 'developer-tools',
+                'name' => 'JWT Decoder',
+                'description' => 'Inspect a JSON Web Token header and payload in the browser without sending it to a server.',
+                'icon' => 'key',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 15,
+                'long_description' => 'The token is decoded locally. Signatures are not verified and signing secrets are not requested. Treat production tokens as sensitive even though they never leave this tab.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Does this check if a token is valid?', 'a' => 'No. It only reads the Base64 parts. It cannot prove the token was signed correctly.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'regex-tester',
+                'category' => 'developer-tools',
+                'name' => 'Regex Tester',
+                'description' => 'Test a regular expression against sample text and highlight the matches.',
+                'icon' => 'code',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 14,
+                'long_description' => 'Patterns run in your browser with JavaScript regular expression syntax. Saved libraries and server-side engines are not included.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Which regex dialect is this?', 'a' => 'JavaScript. Lookbehind and Unicode property escapes depend on the visitor’s browser.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'date-difference-calculator',
+                'category' => 'everyday',
+                'name' => 'Date Difference Calculator',
+                'description' => 'Count days, weeks, months, and years between two calendar dates.',
+                'icon' => 'calendar',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 20,
+                'long_description' => 'The day count uses whole calendar days. Months and years follow the calendar, so a 31 January to 28 February span is not always the same length as a 30-day month.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Does the end date count as a full day?', 'a' => 'The result is the number of midnights between the two dates. Swap the dates if you typed them in reverse; the span is the same.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'business-card-maker',
+                'category' => 'business-productivity',
+                'name' => 'Business Card Maker',
+                'description' => 'Design a simple business card with your name, role, and contact details, then download a PNG.',
+                'icon' => 'id-card',
+                'access_type' => AccessType::Premium,
+                'is_featured' => true,
+                'popularity' => 13,
+                'long_description' => 'The card is drawn in your browser at a print-friendly 3.5 by 2 inch size. Choose a layout and colours, then download a PNG. This does not print or mail cards. Pro and Business subscriptions keep the maker unlocked after the five free Pro trials.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is this printed for me?', 'a' => 'No. You download an image you can send to a printer.'],
+                        ['q' => 'Do I need Pro?', 'a' => 'The first five Pro-tool uses are free. After that, a Pro or Business plan is required.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'random-number-generator',
+                'category' => 'everyday',
+                'name' => 'Random Number Generator',
+                'description' => 'Generate random integers in a range for draws, games, and everyday tasks.',
+                'icon' => 'dice',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 16,
+                'long_description' => 'Numbers are generated in your browser. You can ask for more than one value and optionally keep them unique. This is not a certified lottery or cryptographic service.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Are the numbers truly random?', 'a' => 'They use the browser’s cryptographic random source when it is available. They are not a lottery draw.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'http-status-code-lookup',
+                'category' => 'developer-tools',
+                'name' => 'HTTP Status Code Lookup',
+                'description' => 'Search HTTP status codes and read what they mean, common causes, and what to check next.',
+                'icon' => 'globe',
+                'access_type' => AccessType::Free,
+                'is_featured' => true,
+                'popularity' => 18,
+                'long_description' => 'Meanings follow the usual HTTP semantics. Debugging notes are practical starting points, not a full diagnosis of your stack.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Does this scan my site?', 'a' => 'No. It only explains the code you look up.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'unit-converter',
+                'category' => 'converters',
+                'name' => 'Unit Converter',
+                'description' => 'Convert length, weight, temperature, volume, and speed with common units.',
+                'icon' => 'repeat',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 23,
+                'long_description' => 'Length, weight, volume, and speed use fixed conversion factors. Temperature uses the usual Celsius, Fahrenheit, and Kelvin formulas. Cooking measures beyond cup and millilitre are not included.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is a US gallon used?', 'a' => 'Yes. The gallon is the US liquid gallon.'],
+                    ],
+                ],
+            ],
         ];
 
         foreach ($tools as $tool) {
@@ -199,6 +412,8 @@ class DatabaseSeeder extends Seeder
             'small-business-finance-tracker' => 'small-business-finance-tracker.csv',
             'freelance-business-starter-kit' => 'freelance-business-starter-kit.txt',
             'e-commerce-profit-spreadsheet' => 'ecommerce-profit-spreadsheet.csv',
+            'freelancer-finance-spreadsheet' => 'freelancer-finance-spreadsheet.csv',
+            'business-launch-checklist' => 'business-launch-checklist.txt',
         ];
 
         foreach ($downloads as $slug => $filename) {
@@ -237,6 +452,26 @@ class DatabaseSeeder extends Seeder
                 'whats_included' => ['Fee columns split into percent and fixed amounts', 'One example product row', 'A short explanation of margin and markup'],
                 'preview_image' => '/images/templates/profit-sheet.svg',
                 'file' => 'ecommerce-profit-spreadsheet.csv',
+            ],
+            [
+                'slug' => 'freelancer-finance-spreadsheet',
+                'category' => 'freelance-templates',
+                'name' => 'Freelancer Finance Spreadsheet',
+                'price' => 1900,
+                'description' => 'A CSV for tracking invoices, expenses, and a monthly profit total, with example rows you replace.',
+                'whats_included' => ['Income and expense columns', 'Invoice status field', 'Example rows marked as examples'],
+                'preview_image' => '/images/templates/finance-tracker.svg',
+                'file' => 'freelancer-finance-spreadsheet.csv',
+            ],
+            [
+                'slug' => 'business-launch-checklist',
+                'category' => 'business-planners',
+                'name' => 'Business Launch Checklist',
+                'price' => 1200,
+                'description' => 'A plain-text checklist for launching a freelance offer or a small online store. Edit it before you share it.',
+                'whats_included' => ['Offer and pricing prompts', 'Legal and payment setup notes', 'Launch-week tasks'],
+                'preview_image' => '/images/templates/freelance-kit.svg',
+                'file' => 'business-launch-checklist.txt',
             ],
         ];
 

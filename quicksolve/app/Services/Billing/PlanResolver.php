@@ -102,9 +102,69 @@ class PlanResolver
         return in_array($this->key($user), ['pro', 'business'], true);
     }
 
-    public function allowsPremiumTools(?User $user): bool
+    /**
+     * @return array{used: int, limit: int, remaining: int, window: string, plan: string}
+     */
+    public function premiumTrialUsage(?User $user, Request $request): array
     {
-        return $this->allowsLongDescriptions($user);
+        $limit = (int) config('quicksolve.premium_trial_uses', 5);
+        $plan = $this->key($user);
+
+        if ($this->allowsLongDescriptions($user)) {
+            return [
+                'used' => 0,
+                'limit' => $limit,
+                'remaining' => $limit,
+                'window' => 'subscription',
+                'plan' => $plan,
+            ];
+        }
+
+        $query = UsageEvent::query()->where('usage_type', 'premium_trial');
+
+        if ($user) {
+            $query->where('user_id', $user->id);
+        } else {
+            $query->whereNull('user_id')->where('guest_hash', $this->visitorHash($request));
+        }
+
+        $used = $query->count();
+
+        return [
+            'used' => $used,
+            'limit' => $limit,
+            'remaining' => max($limit - $used, 0),
+            'window' => 'lifetime',
+            'plan' => $plan,
+        ];
+    }
+
+    public function allowsPremiumTools(?User $user, ?Request $request = null): bool
+    {
+        if ($this->allowsLongDescriptions($user)) {
+            return true;
+        }
+
+        return $request instanceof Request && $this->premiumTrialUsage($user, $request)['remaining'] > 0;
+    }
+
+    public function consumePremiumTrial(?User $user, Request $request, string $slug): void
+    {
+        if ($this->allowsLongDescriptions($user)) {
+            return;
+        }
+
+        if ($this->premiumTrialUsage($user, $request)['remaining'] < 1) {
+            return;
+        }
+
+        UsageEvent::query()->create([
+            'user_id' => $user?->id,
+            'guest_hash' => $user ? null : $this->visitorHash($request),
+            'tool_slug' => $slug,
+            'usage_type' => 'premium_trial',
+            'metadata' => null,
+        ]);
     }
 
     public function guestHash(Request $request): string
@@ -112,5 +172,10 @@ class PlanResolver
         $seed = $request->hasSession() ? $request->session()->getId() : 'ip:'.$request->ip();
 
         return hash('sha256', $seed.'|'.config('app.key'));
+    }
+
+    public function visitorHash(Request $request): string
+    {
+        return hash('sha256', ($request->ip() ?: '0.0.0.0').'|'.(string) $request->userAgent().'|'.config('app.key'));
     }
 }

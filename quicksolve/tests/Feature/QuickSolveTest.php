@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Services\Billing\CheckoutService;
 use App\Services\Billing\PlanPriceResolver;
 use App\Services\Billing\PlanResolver;
+use App\Services\Billing\PurchaseFulfiller;
+use App\Services\Billing\PurchaseSyncer;
 use App\Services\Billing\StripePlanCatalog;
 use App\Services\Billing\SubscriptionSyncer;
 use Illuminate\Support\Facades\Http;
@@ -254,6 +256,38 @@ test('a checkout return does not change the plan without a stripe confirmation',
         ->assertInertia(fn ($page) => $page->where('plan.key', 'free')->where('status', 'processing'));
 });
 
+test('a paid checkout session fulfills the matching pending purchase without a webhook', function () {
+    Mail::fake();
+
+    $purchase = Purchase::factory()->pending()->create(['amount' => 1900, 'currency' => 'EUR']);
+
+    expect(app(PurchaseFulfiller::class)->fulfillFromStripeSession([
+        'id' => 'cs_test_template',
+        'mode' => 'payment',
+        'payment_status' => 'paid',
+        'amount_total' => 1900,
+        'currency' => 'eur',
+        'metadata' => ['purchase_id' => (string) $purchase->id],
+    ]))->toBeTrue();
+
+    expect($purchase->fresh()->status->value)->toBe('paid')
+        ->and($purchase->fresh()->payment_reference)->toBe('cs_test_template');
+});
+
+test('a template checkout return asks stripe for the session id', function () {
+    $user = User::factory()->create();
+
+    $this->mock(PurchaseSyncer::class, function ($mock) use ($user) {
+        $mock->shouldReceive('syncUser')
+            ->once()
+            ->withArgs(fn ($passed, $session) => $passed->is($user) && $session === 'cs_test_pay');
+    });
+
+    $this->actingAs($user)
+        ->get('/dashboard/purchases?status=processing&session_id=cs_test_pay')
+        ->assertOk();
+});
+
 test('a checkout return asks stripe for the session id without trusting the url', function () {
     $user = User::factory()->create();
 
@@ -290,6 +324,13 @@ test('freelance rate reports require a pro or business plan', function () {
     $this->post('/tools/freelance-rate-calculator/report', $payload)->assertRedirect(route('login'));
 
     $free = User::factory()->create();
+    $premiumTool = Tool::factory()->premium()->create();
+
+    $this->actingAs($free);
+    for ($uses = 0; $uses < 5; $uses++) {
+        $this->get('/tools/'.$premiumTool->slug)->assertOk();
+    }
+
     $this->actingAs($free)->post('/tools/freelance-rate-calculator/report', $payload)->assertForbidden();
 
     $pro = User::factory()->create();
@@ -307,17 +348,27 @@ test('freelance rate reports require a pro or business plan', function () {
         ->assertSee('Hourly rate: 57.39');
 });
 
-test('premium tools are locked without a qualifying subscription', function () {
+test('premium tools stay available for five trial uses then lock', function () {
     $tool = Tool::factory()->premium()->create();
+
+    for ($uses = 0; $uses < 5; $uses++) {
+        $this->get('/tools/'.$tool->slug)
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('locked', false)->where('premium', true));
+    }
 
     $this->get('/tools/'.$tool->slug)->assertOk()->assertInertia(fn ($page) => $page->where('locked', true));
 });
 
-test('pdf and image tools stay locked until a verified plan is active', function () {
+test('pdf and image tools stay locked after trial uses until a verified plan is active', function () {
     config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
     $this->seed();
 
-    $this->get('/tools/pdf-viewer-editor')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true)->where('tool.slug', 'pdf-viewer-editor'));
+    for ($uses = 0; $uses < 5; $uses++) {
+        $this->get('/tools/pdf-viewer-editor')->assertOk()->assertInertia(fn ($page) => $page->where('locked', false)->where('tool.slug', 'pdf-viewer-editor'));
+    }
+
+    $this->get('/tools/pdf-viewer-editor')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true));
     $this->get('/tools/image-resizer')->assertOk()->assertInertia(fn ($page) => $page->where('locked', true)->where('tool.slug', 'image-resizer'));
 
     $user = User::factory()->create();
@@ -333,6 +384,32 @@ test('pdf and image tools stay locked until a verified plan is active', function
         ->get('/tools/pdf-viewer-editor')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->where('locked', false));
+});
+
+test('the new catalog tools and templates are published', function () {
+    $this->seed();
+
+    foreach ([
+        'break-even-calculator',
+        'timesheet-calculator',
+        'serp-snippet-preview',
+        'utm-link-builder',
+        'marketplace-fee-calculator',
+        'roas-calculator',
+        'jwt-decoder',
+        'regex-tester',
+        'date-difference-calculator',
+        'unit-converter',
+        'random-number-generator',
+        'http-status-code-lookup',
+    ] as $slug) {
+        $this->get('/tools/'.$slug)->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', $slug)->where('locked', false));
+    }
+
+    $this->get('/tools/business-card-maker')->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', 'business-card-maker')->where('locked', false));
+
+    $this->get('/templates/freelancer-finance-spreadsheet')->assertOk();
+    $this->get('/templates/business-launch-checklist')->assertOk();
 });
 
 test('missing stripe prices are created and stored for checkout', function () {

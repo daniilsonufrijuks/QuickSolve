@@ -1,0 +1,10 @@
+Month,Type,Client or vendor,Description,Invoice status,Amount EUR,Notes
+2026-01,Income,Example studio,January design invoice,Paid,1200.00,Replace this row
+2026-01,Expense,Example host,Website hosting,Paid,12.00,Keep the receipt reference in Notes
+2026-01,Expense,Example software,Accounting tool,Paid,9.00,Monthly tools belong here
+2026-02,Income,Example shop,Product photos,Sent,640.00,Change status when the money arrives
+,,,,,
+Instructions,,,,,
+"Use one row per invoice or expense. Income increases the month. Expenses decrease it.",,,,,
+"Invoice status is for your eyes: Draft, Sent, Paid, or Overdue. This file does not send reminders.",,,,,
+"This is not a tax return and it does not connect to a bank.",,,,,

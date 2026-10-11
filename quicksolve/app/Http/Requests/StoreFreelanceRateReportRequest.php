@@ -9,7 +9,7 @@ class StoreFreelanceRateReportRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null && app(PlanResolver::class)->allowsPremiumTools($this->user());
+        return $this->user() !== null && app(PlanResolver::class)->allowsPremiumTools($this->user(), $this);
     }
 
     /**

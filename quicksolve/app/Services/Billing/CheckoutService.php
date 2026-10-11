@@ -76,19 +76,30 @@ class CheckoutService
         ]);
 
         try {
-            return $user->checkoutCharge(
+            $checkout = $user->checkoutCharge(
                 $template->price,
                 $template->name,
                 1,
                 [
-                    'success_url' => route('dashboard.purchases', ['status' => 'processing']),
+                    'success_url' => route('dashboard.purchases', ['status' => 'processing']).'&session_id={CHECKOUT_SESSION_ID}',
                     'cancel_url' => route('templates.show', ['slug' => $template->slug]),
+                    'client_reference_id' => (string) $user->id,
                     'metadata' => [
                         'purchase_id' => (string) $purchase->id,
                         'template_id' => (string) $template->id,
+                        'user_id' => (string) $user->id,
                     ],
                 ],
-            )->asStripeCheckoutSession()->url;
+            );
+            $session = method_exists($checkout, 'asStripeCheckoutSession')
+                ? $checkout->asStripeCheckoutSession()
+                : $checkout;
+
+            $purchase->update([
+                'payment_reference' => is_string($session->id ?? null) ? $session->id : null,
+            ]);
+
+            return $session->url;
         } catch (BillingNotConfiguredException $exception) {
             $purchase->update(['status' => 'failed']);
 

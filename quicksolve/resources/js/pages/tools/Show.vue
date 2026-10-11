@@ -2,12 +2,25 @@
 import EmptyState from '@/components/marketing/EmptyState.vue';
 import PriceBadge from '@/components/marketing/PriceBadge.vue';
 import ToolCard from '@/components/marketing/ToolCard.vue';
+import BreakEvenCalculator from '@/components/tools/BreakEvenCalculator.vue';
+import BusinessCardMaker from '@/components/tools/BusinessCardMaker.vue';
+import DateDifferenceCalculator from '@/components/tools/DateDifferenceCalculator.vue';
 import DescriptionGenerator from '@/components/tools/DescriptionGenerator.vue';
 import DiscountCalculator from '@/components/tools/DiscountCalculator.vue';
 import FreelanceRateCalculator from '@/components/tools/FreelanceRateCalculator.vue';
+import HttpStatusLookup from '@/components/tools/HttpStatusLookup.vue';
 import InvoiceGenerator from '@/components/tools/InvoiceGenerator.vue';
+import JwtDecoder from '@/components/tools/JwtDecoder.vue';
+import MarketplaceFeeCalculator from '@/components/tools/MarketplaceFeeCalculator.vue';
 import ProfitCalculator from '@/components/tools/ProfitCalculator.vue';
 import QrCodeGenerator from '@/components/tools/QrCodeGenerator.vue';
+import RandomNumberGenerator from '@/components/tools/RandomNumberGenerator.vue';
+import RegexTester from '@/components/tools/RegexTester.vue';
+import RoasCalculator from '@/components/tools/RoasCalculator.vue';
+import SerpSnippetPreview from '@/components/tools/SerpSnippetPreview.vue';
+import TimesheetCalculator from '@/components/tools/TimesheetCalculator.vue';
+import UnitConverter from '@/components/tools/UnitConverter.vue';
+import UtmLinkBuilder from '@/components/tools/UtmLinkBuilder.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -29,6 +42,7 @@ defineProps<{
     related: Array<any>;
     locked: boolean;
     usage: { used: number; limit: number; remaining: number; window: string; plan: string } | null;
+    trial: { used: number; limit: number; remaining: number; window: string; plan: string };
     demoMode: boolean;
     premium: boolean;
 }>();
@@ -54,8 +68,11 @@ defineProps<{
             <h1 class="s13ddzcc">{{ tool.name }}</h1>
             <p class="s1fu2krl">{{ tool.description }}</p>
 
+            <p v-if="!locked && trial.window === 'lifetime' && tool.access_type === 'premium'" class="trial">
+                Free Pro trial: {{ trial.remaining }} of {{ trial.limit }} uses left after this visit.
+            </p>
             <div v-if="locked" class="s200pe">
-                <EmptyState title="This tool is included with Pro" message="Premium tools stay locked until a verified subscription is active on the account. Opening this page does not grant access." />
+                <EmptyState title="This tool is included with Pro" :message="trial.used >= trial.limit ? 'You have used the 5 free Pro trials on this browser or account. Subscribe to keep using PDF, image, timesheet, and business card tools.' : 'Premium tools stay locked until a verified subscription is active on the account.'" />
                 <Button as-child class="s200pa"><Link href="/pricing">View plans</Link></Button>
             </div>
             <div v-else class="s200pe">
@@ -67,6 +84,19 @@ defineProps<{
                 <QrCodeGenerator v-else-if="tool.slug === 'qr-code-generator'" :branding="premium" />
                 <PdfEditor v-else-if="tool.slug === 'pdf-viewer-editor'" />
                 <ImageResizer v-else-if="tool.slug === 'image-resizer'" />
+                <BreakEvenCalculator v-else-if="tool.slug === 'break-even-calculator'" />
+                <TimesheetCalculator v-else-if="tool.slug === 'timesheet-calculator'" />
+                <SerpSnippetPreview v-else-if="tool.slug === 'serp-snippet-preview'" />
+                <UtmLinkBuilder v-else-if="tool.slug === 'utm-link-builder'" />
+                <MarketplaceFeeCalculator v-else-if="tool.slug === 'marketplace-fee-calculator'" />
+                <RoasCalculator v-else-if="tool.slug === 'roas-calculator'" />
+                <JwtDecoder v-else-if="tool.slug === 'jwt-decoder'" />
+                <RegexTester v-else-if="tool.slug === 'regex-tester'" />
+                <DateDifferenceCalculator v-else-if="tool.slug === 'date-difference-calculator'" />
+                <UnitConverter v-else-if="tool.slug === 'unit-converter'" />
+                <BusinessCardMaker v-else-if="tool.slug === 'business-card-maker'" />
+                <RandomNumberGenerator v-else-if="tool.slug === 'random-number-generator'" />
+                <HttpStatusLookup v-else-if="tool.slug === 'http-status-code-lookup'" />
             </div>
 
             <section class="srtekoe">
@@ -119,6 +149,10 @@ defineProps<{
     @apply mt-3 max-w-3xl text-lg leading-8;
 }
 
+.trial {
+    @apply mt-6 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900;
+}
+
 .s200pe {
     @apply mt-8;
 }
@@ -147,9 +181,6 @@ defineProps<{
     @apply mt-4 space-y-3;
 }
 
-.s1na2kcg {
-    @apply rounded-xl border bg-white p-4;
-}
 
 .s18mzqs9 {
     @apply cursor-pointer font-medium;

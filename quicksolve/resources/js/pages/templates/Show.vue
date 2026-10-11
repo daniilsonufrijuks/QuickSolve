@@ -93,10 +93,6 @@ const form = useForm({});
     @apply mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700;
 }
 
-.s1jnewzh {
-    @apply h-fit rounded-xl border bg-white p-6 shadow-sm;
-}
-
 .s15bg7bs {
     @apply text-3xl font-semibold;
 }

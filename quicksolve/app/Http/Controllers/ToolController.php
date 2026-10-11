@@ -53,7 +53,15 @@ class ToolController extends Controller
             ->limit(3)
             ->get();
 
-        $locked = $tool->access_type === AccessType::Premium && ! $plans->allowsPremiumTools($request->user());
+        $subscribed = $plans->allowsLongDescriptions($request->user());
+        $trial = $plans->premiumTrialUsage($request->user(), $request);
+        $premium = $subscribed || $trial['remaining'] > 0;
+        $locked = $tool->access_type === AccessType::Premium && ! $premium;
+
+        if ($tool->access_type === AccessType::Premium && ! $locked && ! $subscribed) {
+            $plans->consumePremiumTrial($request->user(), $request, $tool->slug);
+            $trial = $plans->premiumTrialUsage($request->user(), $request);
+        }
 
         return Seo::page('tools/Show', [
             'tool' => (new ToolResource($tool))->resolve(),
@@ -62,8 +70,9 @@ class ToolController extends Controller
             'usage' => $tool->slug === 'product-description-generator'
                 ? $plans->generatorUsage($request->user(), $request)
                 : null,
+            'trial' => $trial,
             'demoMode' => ! is_string(config('quicksolve.ai.api_key')) || config('quicksolve.ai.api_key') === '',
-            'premium' => $plans->allowsPremiumTools($request->user()),
+            'premium' => $premium,
         ], $tool->name, $tool->description, '/tools/'.$tool->slug);
     }
 }

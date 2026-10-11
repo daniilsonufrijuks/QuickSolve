@@ -18,7 +18,7 @@ defineProps<{
             <div class="sy0lrrk">
                 <PricingCard v-for="plan in plans" :key="plan.key" :plan="{ ...plan, checkout: plan.checkout }" />
             </div>
-            <p class="s1imv3vj">Template purchases use the price stored for that product. A success page after checkout does not unlock Pro or a download by itself. Stripe webhooks update the account.</p>
+            <p class="s1imv3vj">Template purchases use the price stored for that product. After Stripe checkout the account asks Stripe for the session, so a paid template should move from pending to paid even when a local webhook listener is not running. Free accounts also get 5 trial uses of Pro tools.</p>
         </div>
     </MarketingLayout>
 </template>

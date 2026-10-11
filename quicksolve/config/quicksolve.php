@@ -6,6 +6,8 @@ return [
 
     'guest_generator_daily_limit' => (int) env('GUEST_GENERATOR_DAILY_LIMIT', 3),
 
+    'premium_trial_uses' => (int) env('PREMIUM_TRIAL_USES', 5),
+
     'usage_retention_days' => (int) env('USAGE_RETENTION_DAYS', 90),
 
     'plans' => [
@@ -19,6 +21,7 @@ return [
                 'Profit, discount, and freelance rate calculators',
                 'Invoice generator with PDF export',
                 'QR codes for links, Wi-Fi, contacts, and text',
+                '5 trial uses of Pro tools',
                 '5 product descriptions per month',
             ],
         ],
@@ -35,6 +38,7 @@ return [
                 'Branded QR colors and freelance rate reports',
                 'PDF viewer and editor',
                 'Image resize and format conversion',
+                'Business card maker and timesheet exports',
             ],
         ],
         'business' => [
