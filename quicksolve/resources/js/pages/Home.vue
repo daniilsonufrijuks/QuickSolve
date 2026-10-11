@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HomePromoBanner from '@/components/marketing/HomePromoBanner.vue';
 import PricingCard from '@/components/marketing/PricingCard.vue';
 import SearchInput from '@/components/marketing/SearchInput.vue';
 import TemplateCard from '@/components/marketing/TemplateCard.vue';
@@ -32,8 +33,12 @@ const faqs = [
     <Head title="Home" />
     <MarketingLayout>
         <section class="s1665r3c">
+            <div class="blobs" aria-hidden="true">
+                <span class="blob one" />
+                <span class="blob two" />
+            </div>
             <div class="s1wgivq5">
-                <div>
+                <div class="rise">
                     <p class="s1d0sn9t">Small tools. Smarter business.</p>
                     <h1 class="s1uez7dt">Everything you need to run your small business.</h1>
                     <p class="sx13tis">Calculate profits, create business documents, generate product descriptions, and access practical templates — all in one place.</p>
@@ -42,16 +47,20 @@ const faqs = [
                         <Button as-child variant="outline"><Link href="/templates">Browse Templates</Link></Button>
                     </div>
                 </div>
-                <form class="suukg7i" @submit.prevent="search">
+                <form class="suukg7i float-card" @submit.prevent="search">
                     <SearchInput v-model="query" label="Find a tool" placeholder="Try profit, invoice, or description" />
                     <Button class="s200p9" type="submit">Search tools</Button>
                 </form>
             </div>
         </section>
 
+        <section class="promo-wrap">
+            <HomePromoBanner />
+        </section>
+
         <section class="s1w0rxx6">
             <h2 class="sixq2vr">Featured free tools</h2>
-            <div class="s8emdm2">
+            <div class="s8emdm2 stagger">
                 <ToolCard v-for="tool in featuredTools" :key="tool.slug" :tool="tool" />
             </div>
         </section>
@@ -59,7 +68,7 @@ const faqs = [
         <section class="s9szkh0">
             <div class="s18rto4z">
                 <h2 class="sixq2vr">Popular business tools</h2>
-                <div class="s8emdm2">
+                <div class="s8emdm2 stagger">
                     <ToolCard v-for="tool in popularTools" :key="tool.slug" :tool="tool" />
                 </div>
             </div>
@@ -68,7 +77,7 @@ const faqs = [
         <section class="s1w0rxx6">
             <h2 class="sixq2vr">Best-selling templates</h2>
             <p class="s1dj7fjp">These are the downloadable files currently in the catalog. Each one is a real file stored privately after purchase.</p>
-            <div class="s8emdm2">
+            <div class="s8emdm2 stagger">
                 <TemplateCard v-for="template in templates" :key="template.slug" :template="template" />
             </div>
         </section>
@@ -92,11 +101,22 @@ const faqs = [
 
         <section class="s1w0rxx6">
             <h2 class="sixq2vr">How it works</h2>
-            <ol class="s8emdm2">
+            <ol class="s8emdm2 stagger">
                 <li class="spzmmle"><span class="s1d0sn9t">1</span><p class="s5t2knz">Start with a free tool</p><p class="sxuzv25">Run a calculation or draft an invoice without creating an account.</p></li>
                 <li class="spzmmle"><span class="s1d0sn9t">2</span><p class="s5t2knz">Keep what you want</p><p class="sxuzv25">Sign in to store invoices, or buy a template as a one-time download.</p></li>
                     <li class="spzmmle"><span class="s1d0sn9t">3</span><p class="s5t2knz">Upgrade only if the limit is in the way</p><p class="sxuzv25">Pro unlocks extra documents and colour on PDFs. Business adds unbranded files and CSV exports. Access changes after Stripe confirms payment.</p></li>
             </ol>
+        </section>
+
+        <section class="plan-ad">
+            <div class="plan-ad-inner">
+                <div>
+                    <p class="plan-kicker">Paid plans</p>
+                    <h2 class="plan-title">Five Pro-tool uses are free. After that, Pro is a monthly Stripe subscription.</h2>
+                    <p class="plan-copy">Checkout uses the price stored on the server. Returning from a success URL does not turn Pro on by itself.</p>
+                </div>
+                <Button as-child><Link href="/pricing">Compare plans</Link></Button>
+            </div>
         </section>
 
         <section class="s9szkh0">
@@ -122,11 +142,106 @@ const faqs = [
 
 <style scoped>
 .s1665r3c {
-    @apply border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950;
+    @apply relative overflow-hidden border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950;
+}
+
+.blobs {
+    @apply pointer-events-none absolute inset-0;
+}
+
+.blob {
+    @apply absolute rounded-full blur-3xl;
+}
+
+.blob.one {
+    @apply -left-16 top-0 h-64 w-64 bg-blue-400/30 dark:bg-blue-500/20;
+    animation: drift 18s ease-in-out infinite;
+}
+
+.blob.two {
+    @apply bottom-0 right-0 h-72 w-72 bg-indigo-300/40 dark:bg-indigo-500/20;
+    animation: drift 22s ease-in-out infinite reverse;
 }
 
 .s1wgivq5 {
-    @apply mx-auto grid max-w-6xl gap-10 px-4 py-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-center;
+    @apply relative z-10 mx-auto grid max-w-6xl gap-10 px-4 py-16 lg:grid-cols-[1.2fr_0.8fr] lg:items-center;
+}
+
+.rise {
+    animation: rise 0.8s ease-out both;
+}
+
+.float-card {
+    animation: float 6s ease-in-out infinite;
+}
+
+.promo-wrap {
+    @apply mx-auto max-w-6xl px-4 py-10;
+}
+
+.stagger > * {
+    animation: rise 0.7s ease-out both;
+}
+
+.stagger > *:nth-child(2) {
+    animation-delay: 0.08s;
+}
+
+.stagger > *:nth-child(3) {
+    animation-delay: 0.16s;
+}
+
+.stagger > *:nth-child(4) {
+    animation-delay: 0.24s;
+}
+
+.stagger > *:nth-child(5) {
+    animation-delay: 0.32s;
+}
+
+.stagger > *:nth-child(6) {
+    animation-delay: 0.4s;
+}
+
+@keyframes drift {
+    0%,
+    100% {
+        transform: translate(0, 0) scale(1);
+    }
+    50% {
+        transform: translate(24px, -18px) scale(1.08);
+    }
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .blob.one,
+    .blob.two,
+    .rise,
+    .float-card,
+    .stagger > * {
+        animation: none;
+    }
 }
 
 .s1d0sn9t {
@@ -219,5 +334,25 @@ const faqs = [
 
 .s18mzqs9 {
     @apply cursor-pointer font-medium;
+}
+
+.plan-ad {
+    @apply bg-slate-900 px-4 py-10 text-white dark:bg-slate-800;
+}
+
+.plan-ad-inner {
+    @apply mx-auto flex max-w-6xl flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between;
+}
+
+.plan-kicker {
+    @apply text-xs font-medium uppercase tracking-wide text-blue-200;
+}
+
+.plan-title {
+    @apply mt-1 max-w-xl text-xl font-semibold;
+}
+
+.plan-copy {
+    @apply mt-2 max-w-xl text-sm leading-6 text-slate-300;
 }
 </style>
