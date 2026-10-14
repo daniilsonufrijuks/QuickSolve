@@ -18,13 +18,15 @@ import {
     Scissors,
     Trash2,
     Type,
+    Undo2,
     ZoomIn,
     ZoomOut,
 } from 'lucide-vue-next';
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 
 GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -84,6 +86,12 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const mergeInput = ref<HTMLInputElement | null>(null);
 const imageInput = ref<HTMLInputElement | null>(null);
 const photosInput = ref<HTMLInputElement | null>(null);
+const history = ref<string[]>([]);
+const docToken = ref(0);
+let pdfjsLoaded: PDFDocumentProxy | null = null;
+let pdfjsToken = -1;
+let pdfjsInflight: Promise<PDFDocumentProxy> | null = null;
+let pdfjsInflightToken = -1;
 
 const pageOverlays = computed(() => overlays.value.filter((item) => item.page === currentPage.value));
 const textMarks = computed(() => pageOverlays.value.filter((item): item is Extract<Overlay, { kind: 'text' }> => item.kind === 'text'));
@@ -103,6 +111,11 @@ function cloneBytes(source: Uint8Array): Uint8Array {
     copy.set(source);
 
     return copy;
+}
+
+function setPdfBytes(data: Uint8Array) {
+    docToken.value += 1;
+    bytes.value = cloneBytes(data);
 }
 
 function hexToRgb(hex: string) {
@@ -136,8 +149,76 @@ function pdfFromEvent(event: MouseEvent): Point | null {
 
 function cssFont(item: Extract<Overlay, { kind: 'text' }>) {
     const family = item.font === 'times' ? 'Times New Roman, Times, serif' : item.font === 'courier' ? 'Courier New, Courier, monospace' : 'Helvetica, Arial, sans-serif';
+    const px = canvasHeight.value > 0 && pageHeight.value > 0 ? item.size * (canvasHeight.value / pageHeight.value) : item.size;
 
-    return `${item.bold ? '700' : '400'} ${item.size * (zoom.value / 100)}px ${family}`;
+    return `${item.bold ? '700' : '400'} ${px}px ${family}`;
+}
+
+function inferFont(name: string): FontName {
+    const value = name.toLowerCase();
+
+    if (value.includes('times') || value.includes('roman')) {
+        return 'times';
+    }
+
+    if (value.includes('courier')) {
+        return 'courier';
+    }
+
+    return 'helvetica';
+}
+
+function inferBold(name: string): boolean {
+    const value = name.toLowerCase();
+
+    return value.includes('bold') || value.includes('black') || value.includes('heavy') || value.includes('semibold');
+}
+
+function estimatedWidth(font: FontName, size: number, isBold: boolean, text: string): number {
+    const longest = text.split('\n').reduce((max, line) => Math.max(max, line.length), 1);
+    const factor = font === 'courier' ? 0.6 : font === 'times' ? 0.47 : 0.51;
+
+    return size * factor * longest * (isBold ? 1.06 : 1);
+}
+
+function snapshot() {
+    history.value.push(JSON.stringify(overlays.value));
+
+    if (history.value.length > 40) {
+        history.value.shift();
+    }
+}
+
+function undo() {
+    const previous = history.value.pop();
+
+    if (!previous) {
+        return;
+    }
+
+    overlays.value = JSON.parse(previous) as Overlay[];
+    selectedId.value = '';
+}
+
+function onHotkey(event: KeyboardEvent) {
+    if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) {
+        if (event.key === 'Escape') {
+            (event.target as HTMLElement).blur();
+            selectedId.value = '';
+        }
+
+        return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undo();
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        selectedId.value = '';
+    }
 }
 
 async function standardFont(document: PDFDocument, font: FontName, isBold: boolean) {
@@ -156,7 +237,8 @@ async function loadPdfBytes(data: Uint8Array, name: string) {
     error.value = '';
     overlays.value = [];
     selectedId.value = '';
-    bytes.value = cloneBytes(data);
+    history.value = [];
+    setPdfBytes(data);
     fileName.value = name;
     currentPage.value = 1;
     await reload();
@@ -187,7 +269,27 @@ async function startBlank() {
     const document = await PDFDocument.create();
     document.addPage([595.28, 841.89]);
     await loadPdfBytes(await document.save(), 'untitled.pdf');
-    notice.value = 'Blank A4 page. Click and type, then download.';
+    notice.value = 'Blank A4 page. Double-click to type, then download.';
+    tool.value = 'edit';
+}
+
+async function loadSample() {
+    const document = await PDFDocument.create();
+    const page = document.addPage([595.28, 841.89]);
+    const regular = await document.embedFont(StandardFonts.Helvetica);
+    const heading = await document.embedFont(StandardFonts.HelveticaBold);
+    const ink = rgb(0.07, 0.09, 0.15);
+
+    page.drawText('Lorem ipsum', { x: 180, y: 760, size: 28, font: heading, color: ink });
+    page.drawText('Lorem ipsum dolor sit amet, consectetur adipiscing', { x: 72, y: 700, size: 14, font: heading, color: ink });
+    page.drawText('elit. Nunc ac faucibus odio.', { x: 72, y: 682, size: 14, font: heading, color: ink });
+    page.drawText('Vestibulum neque massa, scelerisque sit amet ligula eu, congue molestie mi.', { x: 72, y: 640, size: 11, font: regular, color: ink });
+    page.drawText('Praesent ut varius sem. Nullam at porttitor arcu, nec lacinia nisi.', { x: 72, y: 624, size: 11, font: regular, color: ink });
+    page.drawText('Mauris id ex sagittis. Morbi viverra semper lorem nec molestie.', { x: 72, y: 520, size: 11, font: regular, color: ink });
+    page.drawText('Maecenas tincidunt est efficitur ligula euismod.', { x: 72, y: 504, size: 11, font: regular, color: ink });
+
+    await loadPdfBytes(await document.save(), 'sample.pdf');
+    notice.value = 'Sample page loaded. Click a line to edit it. The original page stays visible.';
     tool.value = 'edit';
 }
 
@@ -200,9 +302,13 @@ async function reload() {
         const loaded = await PDFDocument.load(cloneBytes(bytes.value), { ignoreEncryption: true });
         pageCount.value = loaded.getPageCount();
         currentPage.value = Math.min(Math.max(currentPage.value, 1), Math.max(pageCount.value, 1));
-        const size = loaded.getPage(currentPage.value - 1).getSize();
-        pageWidth.value = size.width;
-        pageHeight.value = size.height;
+    } catch (caught) {
+        error.value = caught instanceof Error ? caught.message : 'This PDF could not be opened.';
+        return;
+    }
+
+    try {
+        await syncPageMetrics(currentPage.value);
     } catch (caught) {
         error.value = caught instanceof Error ? caught.message : 'This PDF could not be opened.';
         return;
@@ -213,8 +319,55 @@ async function reload() {
     await renderThumbs();
 }
 
+async function releasePdfjs() {
+    const loaded = pdfjsLoaded;
+    pdfjsLoaded = null;
+    pdfjsToken = -1;
+
+    if (loaded && typeof loaded.destroy === 'function') {
+        try {
+            await loaded.destroy();
+        } catch {
+            // PDF.js 6 can throw if the worker was already torn down.
+        }
+    }
+}
+
 async function pdfjsDoc() {
-    return getDocument({ data: cloneBytes(bytes.value as Uint8Array), isEvalSupported: false }).promise;
+    if (pdfjsLoaded && pdfjsToken === docToken.value) {
+        return pdfjsLoaded;
+    }
+
+    if (pdfjsInflight && pdfjsInflightToken === docToken.value) {
+        return pdfjsInflight;
+    }
+
+    const token = docToken.value;
+    pdfjsInflightToken = token;
+    pdfjsInflight = (async () => {
+        await releasePdfjs();
+        const loaded = await getDocument({ data: cloneBytes(bytes.value as Uint8Array), isEvalSupported: false }).promise;
+        pdfjsLoaded = loaded;
+        pdfjsToken = token;
+
+        return loaded;
+    })();
+
+    try {
+        return await pdfjsInflight;
+    } finally {
+        if (pdfjsInflightToken === token) {
+            pdfjsInflight = null;
+        }
+    }
+}
+
+async function syncPageMetrics(pageNumber: number) {
+    const loaded = await pdfjsDoc();
+    const page = await loaded.getPage(pageNumber);
+    const viewport = page.getViewport({ scale: 1 });
+    pageWidth.value = viewport.width;
+    pageHeight.value = viewport.height;
 }
 
 async function renderPageToUrl(pageNumber: number, scale: number, type: 'image/png' | 'image/jpeg' = 'image/png', quality = 0.92) {
@@ -268,7 +421,7 @@ async function extractPageText(pageNumber: number) {
         const loaded = await pdfjsDoc();
         const page = await loaded.getPage(pageNumber);
         const content = await page.getTextContent();
-        const raw: Array<{ x: number; y: number; w: number; h: number; size: number; text: string }> = [];
+        const raw: Array<{ x: number; y: number; w: number; h: number; size: number; text: string; fontName: string }> = [];
 
         for (const item of content.items) {
             if (!('str' in item) || typeof item.str !== 'string' || item.str.replace(/\s/g, '') === '') {
@@ -277,13 +430,15 @@ async function extractPageText(pageNumber: number) {
 
             const transform = item.transform;
             const size = Math.hypot(transform[2], transform[3]) || Math.abs(transform[3]) || 12;
+            const width = item.width || size * item.str.length * 0.5;
             raw.push({
                 x: transform[4],
                 y: transform[5],
-                w: item.width || size * item.str.length * 0.48,
-                h: item.height || size,
+                w: width,
+                h: item.height && item.height > 0 ? item.height : size,
                 size,
                 text: item.str,
+                fontName: 'fontName' in item ? String(item.fontName) : '',
             });
         }
 
@@ -334,7 +489,10 @@ async function extractPageText(pageNumber: number) {
     }
 }
 
-function lineToBlock(pageNumber: number, chunk: Array<{ x: number; y: number; w: number; h: number; size: number; text: string }>): Overlay {
+function lineToBlock(
+    pageNumber: number,
+    chunk: Array<{ x: number; y: number; w: number; h: number; size: number; text: string; fontName: string }>,
+): Overlay {
     const first = chunk[0];
     const last = chunk[chunk.length - 1];
     const text = chunk
@@ -350,6 +508,8 @@ function lineToBlock(pageNumber: number, chunk: Array<{ x: number; y: number; w:
         })
         .join('');
     const size = chunk.reduce((sum, part) => sum + part.size, 0) / chunk.length;
+    const font = inferFont(chunk.find((part) => part.fontName)?.fontName ?? '');
+    const bold = chunk.some((part) => inferBold(part.fontName));
 
     return {
         kind: 'text',
@@ -357,14 +517,14 @@ function lineToBlock(pageNumber: number, chunk: Array<{ x: number; y: number; w:
         page: pageNumber,
         x: first.x,
         y: first.y,
-        w: Math.max(last.x + last.w - first.x, size * 2),
-        h: Math.max(...chunk.map((part) => part.h), size),
+        w: Math.max(last.x + last.w - first.x, estimatedWidth(font, size, bold, text), size),
+        h: size,
         text,
         original: text,
         size,
         color: '#111827',
-        font: 'helvetica',
-        bold: false,
+        font,
+        bold,
         native: true,
     };
 }
@@ -406,10 +566,7 @@ async function goTo(page: number) {
     selectedId.value = '';
 
     try {
-        const loaded = await PDFDocument.load(cloneBytes(bytes.value), { ignoreEncryption: true });
-        const size = loaded.getPage(currentPage.value - 1).getSize();
-        pageWidth.value = size.width;
-        pageHeight.value = size.height;
+        await syncPageMetrics(currentPage.value);
     } catch {
         error.value = 'That page could not be opened.';
         return;
@@ -430,11 +587,16 @@ function isLiveText(item: Extract<Overlay, { kind: 'text' }>) {
 
 function overlayStyle(item: Overlay) {
     if (item.kind === 'text') {
+        const padX = item.size * 0.14;
+        const ascent = item.size * 0.82;
+        const descent = item.size * 0.32;
+        const textWidth = Math.max(item.w, estimatedWidth(item.font, item.size, item.bold, item.text), estimatedWidth(item.font, item.size, item.bold, item.original));
+
         return {
-            left: `${(item.x / pageWidth.value) * 100}%`,
-            top: `${((pageHeight.value - item.y - item.h) / pageHeight.value) * 100}%`,
-            width: `${(Math.max(item.w, item.size * 1.2) / pageWidth.value) * 100}%`,
-            height: `${(Math.max(item.h, item.size) / pageHeight.value) * 100}%`,
+            left: `${((item.x - padX) / pageWidth.value) * 100}%`,
+            top: `${((pageHeight.value - item.y - ascent) / pageHeight.value) * 100}%`,
+            width: `${((textWidth + padX * 2) / pageWidth.value) * 100}%`,
+            height: `${((ascent + descent) / pageHeight.value) * 100}%`,
             font: cssFont(item),
         };
     }
@@ -463,6 +625,7 @@ function inkPath(item: Extract<Overlay, { kind: 'ink' }>) {
 }
 
 async function placeText(point: Point) {
+    snapshot();
     const overlay: Overlay = {
         kind: 'text',
         id: crypto.randomUUID(),
@@ -507,6 +670,7 @@ function onStageDown(event: MouseEvent) {
     }
 
     if (tool.value === 'image' && imagePayload.value) {
+        snapshot();
         const overlay: Overlay = {
             kind: 'image',
             id: crypto.randomUUID(),
@@ -557,6 +721,7 @@ function onStageUp(event: MouseEvent) {
     const point = pdfFromEvent(event);
 
     if (drawing.value && tool.value === 'draw' && drawing.value.length > 1) {
+        snapshot();
         overlays.value = [
             ...overlays.value,
             { kind: 'ink', id: crypto.randomUUID(), page: currentPage.value, points: drawing.value, color: inkColor.value, width: 2.2 },
@@ -571,6 +736,7 @@ function onStageUp(event: MouseEvent) {
         const h = Math.abs(point.y - start.y);
 
         if (w > 4 && h > 4) {
+            snapshot();
             overlays.value = [
                 ...overlays.value,
                 { kind: 'highlight', id: crypto.randomUUID(), page: currentPage.value, x, y, w, h, color: highlightColor.value },
@@ -587,6 +753,7 @@ function startDrag(event: MouseEvent, item: Overlay) {
         return;
     }
 
+    snapshot();
     event.stopPropagation();
     selectedId.value = item.id;
     const point = pdfFromEvent(event);
@@ -605,6 +772,14 @@ function startDrag(event: MouseEvent, item: Overlay) {
     }
 }
 
+function selectText(item: Extract<Overlay, { kind: 'text' }>) {
+    selectedId.value = item.id;
+    fontSize.value = Math.round(item.size);
+    fontFamily.value = item.font;
+    bold.value = item.bold;
+    inkColor.value = item.color;
+}
+
 function applyFormat() {
     const item = selectedText.value;
 
@@ -612,19 +787,36 @@ function applyFormat() {
         return;
     }
 
+    if (item.size !== fontSize.value || item.font !== fontFamily.value || item.bold !== bold.value || item.color !== inkColor.value) {
+        snapshot();
+    }
+
     item.size = fontSize.value;
     item.font = fontFamily.value;
     item.bold = bold.value;
     item.color = inkColor.value;
+    item.h = Math.max(item.h, fontSize.value);
+    item.w = Math.max(item.w, estimatedWidth(item.font, item.size, item.bold, item.text), estimatedWidth(item.font, item.size, item.bold, item.original));
 }
 
 function removeSelected() {
+    snapshot();
     overlays.value = overlays.value.filter((item) => item.id !== selectedId.value);
     selectedId.value = '';
 }
 
 function markText(item: Extract<Overlay, { kind: 'text' }>, value: string) {
+    if (item.text === item.original) {
+        snapshot();
+    }
+
     item.text = value;
+    item.w = Math.max(
+        item.w,
+        estimatedWidth(item.font, item.size, item.bold, value),
+        estimatedWidth(item.font, item.size, item.bold, item.original),
+    );
+    item.h = Math.max(item.h, item.size * Math.max(value.split('\n').length, 1));
 }
 
 function onTextBlur(item: Extract<Overlay, { kind: 'text' }>) {
@@ -674,14 +866,19 @@ async function bake(): Promise<Uint8Array> {
         const page = document.getPage(overlay.page - 1);
 
         if (overlay.kind === 'text' && overlay.text !== overlay.original) {
-            const coverWidth = Math.max(overlay.w, overlay.size * Math.max(overlay.text.length, overlay.original.length) * 0.52, 12);
-            const coverHeight = overlay.h + overlay.size * Math.max(overlay.text.split('\n').length - 1, 0);
+            const coverWidth = Math.max(
+                overlay.w,
+                estimatedWidth(overlay.font, overlay.size, overlay.bold, overlay.text),
+                estimatedWidth(overlay.font, overlay.size, overlay.bold, overlay.original),
+                12,
+            );
+            const lines = Math.max(overlay.text.split('\n').length, overlay.original.split('\n').length, 1);
 
             page.drawRectangle({
-                x: overlay.x - 1,
-                y: overlay.y - overlay.size * 0.22,
-                width: coverWidth + 8,
-                height: coverHeight + overlay.size * 0.35,
+                x: overlay.x - overlay.size * 0.16,
+                y: overlay.y - overlay.size * 0.32,
+                width: coverWidth + overlay.size * 0.4,
+                height: overlay.size * (1.15 + 0.35 * (lines - 1)),
                 color: rgb(1, 1, 1),
             });
 
@@ -759,7 +956,7 @@ async function bake(): Promise<Uint8Array> {
 }
 
 async function persistBake() {
-    bytes.value = await bake();
+    setPdfBytes(await bake());
     await refreshPreview();
     await renderThumbs();
 }
@@ -777,7 +974,7 @@ async function downloadEdited() {
 
     try {
         const data = hasEdits.value ? await bake() : cloneBytes(bytes.value as Uint8Array);
-        bytes.value = data;
+        setPdfBytes(data);
         downloadBytes(data, '-edited.pdf');
         await refreshPreview();
         await renderThumbs();
@@ -808,7 +1005,7 @@ async function mergePdfs(event: Event) {
             copied.forEach((page) => document.addPage(page));
         }
 
-        bytes.value = await document.save();
+        setPdfBytes(await document.save());
         notice.value = `Merged ${files.length} file${files.length === 1 ? '' : 's'} onto the end of this PDF.`;
         await reload();
     } catch (caught) {
@@ -848,7 +1045,7 @@ async function rotatePage() {
     const page = source.getPage(currentPage.value - 1);
     const current = page.getRotation().angle;
     page.setRotation(degrees((current + 90) % 360));
-    bytes.value = await source.save();
+    setPdfBytes(await source.save());
     overlays.value = overlays.value.filter((item) => item.page !== currentPage.value);
     await reload();
 }
@@ -864,7 +1061,7 @@ async function deletePage() {
     const document = await PDFDocument.create();
     const copied = await document.copyPages(source, keep);
     copied.forEach((page) => document.addPage(page));
-    bytes.value = await document.save();
+    setPdfBytes(await document.save());
     overlays.value = overlays.value
         .filter((item) => item.page !== currentPage.value)
         .map((item) => (item.page > currentPage.value ? { ...item, page: item.page - 1 } : item));
@@ -894,7 +1091,7 @@ async function compress() {
         }
 
         const saved = await document.save();
-        bytes.value = saved;
+        setPdfBytes(saved);
         overlays.value = [];
         downloadBytes(saved, '-compressed.pdf');
         notice.value = 'Compressed by redrawing each page as a JPEG. Text is no longer selectable in this copy.';
@@ -997,6 +1194,12 @@ function onDrop(event: DragEvent) {
 
     void file.arrayBuffer().then((buffer) => loadPdfBytes(new Uint8Array(buffer), file.name));
 }
+
+onMounted(() => window.addEventListener('keydown', onHotkey));
+onUnmounted(() => {
+    window.removeEventListener('keydown', onHotkey);
+    void releasePdfjs();
+});
 </script>
 
 <template>
@@ -1018,6 +1221,7 @@ function onDrop(event: DragEvent) {
                         <button type="button" :disabled="!bytes" @click="pageToPng">This page to PNG</button>
                         <button type="button" @click="photosInput?.click()">Images to PDF</button>
                         <button type="button" @click="startBlank">Blank A4 PDF</button>
+                        <button type="button" @click="loadSample">Sample document</button>
                     </div>
                 </div>
             </nav>
@@ -1043,6 +1247,7 @@ function onDrop(event: DragEvent) {
             <label class="mini">Color <input v-model="inkColor" type="color" @change="applyFormat" /></label>
             <label v-if="tool === 'highlight'" class="mini">Highlight <input v-model="highlightColor" type="color" /></label>
             <span class="spacer" />
+            <button type="button" class="tool" :disabled="history.length === 0" title="Undo" @click="undo"><Undo2 /></button>
             <button type="button" class="tool" :disabled="!bytes" title="Rotate page" @click="rotatePage"><RotateCw /></button>
             <button type="button" class="tool" :disabled="!bytes || pageCount <= 1" title="Delete page" @click="deletePage"><Trash2 /></button>
             <Button size="sm" :disabled="!bytes || !!busy" @click="downloadEdited"><Download /> Download</Button>
@@ -1058,6 +1263,7 @@ function onDrop(event: DragEvent) {
             <div class="row">
                 <Button type="button" @click="fileInput?.click()">Open PDF</Button>
                 <Button type="button" variant="outline" @click="startBlank">Blank document</Button>
+                <Button type="button" variant="outline" @click="loadSample">Sample document</Button>
             </div>
         </div>
 
@@ -1135,9 +1341,9 @@ function onDrop(event: DragEvent) {
                             :value="item.text"
                             spellcheck="false"
                             :style="textFieldStyle(item)"
-                            @mousedown.stop="selectedId = item.id"
+                            @mousedown.stop="selectText(item)"
                             @input="markText(item, ($event.target as HTMLTextAreaElement).value)"
-                            @focus="selectedId = item.id"
+                            @focus="selectText(item)"
                             @blur="onTextBlur(item)"
                         />
                     </div>
@@ -1313,11 +1519,15 @@ function onDrop(event: DragEvent) {
 }
 
 .copy-wrap {
-    @apply z-10 overflow-hidden bg-transparent;
+    @apply z-10 overflow-visible bg-transparent;
+}
+
+.copy-wrap:hover:not(.live) {
+    @apply ring-1 ring-blue-400/70;
 }
 
 .copy-wrap.live {
-    @apply z-20;
+    @apply z-20 bg-white shadow-[0_0_0_3px_#fff];
 }
 
 .grip {
@@ -1325,8 +1535,9 @@ function onDrop(event: DragEvent) {
 }
 
 .copy {
-    @apply h-full w-full resize-none overflow-hidden border-0 bg-transparent px-0.5 leading-tight outline-none;
+    @apply h-full w-full resize-none overflow-hidden border-0 bg-transparent px-0.5 leading-none outline-none;
     color-scheme: light;
+    white-space: nowrap;
 }
 
 .picture {
