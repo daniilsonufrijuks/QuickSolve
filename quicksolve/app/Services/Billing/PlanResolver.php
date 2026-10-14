@@ -16,6 +16,7 @@ class PlanResolver
         'product-description-generator',
         'email-templates',
         'home-chat',
+        'cv-builder',
     ];
 
     public function __construct(private readonly PlanPriceResolver $prices) {}

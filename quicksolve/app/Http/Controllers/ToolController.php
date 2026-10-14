@@ -83,7 +83,7 @@ class ToolController extends Controller
             'tool' => (new ToolResource($tool))->resolve(),
             'related' => ToolResource::collection($related)->resolve(),
             'locked' => $locked,
-            'usage' => in_array($tool->slug, ['product-description-generator', 'email-templates'], true)
+            'usage' => in_array($tool->slug, ['product-description-generator', 'email-templates', 'cv-builder'], true)
                 ? $plans->generatorUsage($request->user(), $request)
                 : null,
             'trial' => $trial,

@@ -105,7 +105,7 @@ defineProps<{
                 <BusinessCardMaker v-else-if="tool.slug === 'business-card-maker'" />
                 <RandomNumberGenerator v-else-if="tool.slug === 'random-number-generator'" />
                 <HttpStatusLookup v-else-if="tool.slug === 'http-status-code-lookup'" />
-                <CvBuilder v-else-if="tool.slug === 'cv-builder'" />
+                <CvBuilder v-else-if="tool.slug === 'cv-builder'" :usage="usage" :demo-mode="demoMode" />
                 <EmailTemplates v-else-if="tool.slug === 'email-templates'" :usage="usage" :demo-mode="demoMode" />
                 <QuoteBuilder v-else-if="tool.slug === 'quote-builder'" :plan="plan" :business="business" />
                 <CoverLetterBuilder v-else-if="tool.slug === 'cover-letter'" />

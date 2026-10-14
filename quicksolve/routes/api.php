@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\CatalogController;
+use App\Http\Controllers\Api\V1\CvChatController;
 use App\Http\Controllers\Api\V1\EmailDraftController;
 use App\Http\Controllers\Api\V1\HomeChatController;
 use App\Http\Controllers\Api\V1\ProductDescriptionController;
@@ -21,6 +22,8 @@ Route::prefix('v1')->group(function () {
     Route::post('/tools/product-description-generator/generate', [ProductDescriptionController::class, 'store'])
         ->middleware('throttle:generator');
     Route::post('/tools/email-templates/generate', [EmailDraftController::class, 'store'])
+        ->middleware('throttle:generator');
+    Route::post('/tools/cv-builder/generate', [CvChatController::class, 'store'])
         ->middleware('throttle:generator');
     Route::post('/home/chat', [HomeChatController::class, 'store'])
         ->middleware('throttle:generator');

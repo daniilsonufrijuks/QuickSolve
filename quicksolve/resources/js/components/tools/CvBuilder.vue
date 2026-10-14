@@ -1,9 +1,16 @@
 <script setup lang="ts">
+import ErrorState from '@/components/marketing/ErrorState.vue';
 import FormField from '@/components/marketing/FormField.vue';
 import CvPreview from '@/components/tools/CvPreview.vue';
 import type { CvDraft, CvEducation, CvExperience } from '@/components/tools/CvPreview.vue';
 import { Button } from '@/components/ui/button';
+import { postJson } from '@/lib/api';
 import { reactive, ref } from 'vue';
+
+const props = defineProps<{
+    usage: { used: number; limit: number; remaining: number; window: string; plan: string } | null;
+    demoMode: boolean;
+}>();
 
 const templates = [
     { id: 'classic', name: 'Classic' },
@@ -49,6 +56,20 @@ const cv = reactive<CvDraft>({
 
 const error = ref('');
 const downloading = ref(false);
+const panel = ref<'edit' | 'json' | 'chat'>('edit');
+const jsonPaste = ref('');
+const registryUser = ref('');
+const jsonBusy = ref('');
+const chatBusy = ref(false);
+const instruction = ref('');
+const usageState = ref(props.usage);
+const chat = ref<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+const suggestion = ref<{
+    mode: string;
+    notice: string | null;
+    reply: string;
+    patch: Partial<CvDraft> | null;
+} | null>(null);
 
 function addSkill() {
     cv.skills.push('');
@@ -190,10 +211,239 @@ async function downloadPdf() {
         downloading.value = false;
     }
 }
+
+function cvPayload() {
+    return {
+        template: cv.template,
+        full_name: cv.full_name,
+        headline: cv.headline,
+        email: cv.email,
+        phone: cv.phone,
+        location: cv.location,
+        website: cv.website,
+        summary: cv.summary,
+        skills: cv.skills.map((skill) => skill.trim()).filter(Boolean),
+        experience: cv.experience.filter((job) => job.role.trim() !== ''),
+        education: cv.education.filter((item) => item.school.trim() !== ''),
+    };
+}
+
+function applyMapped(mapped: Partial<CvDraft>) {
+    cv.full_name = mapped.full_name ?? '';
+    cv.headline = mapped.headline ?? '';
+    cv.email = mapped.email ?? '';
+    cv.phone = mapped.phone ?? '';
+    cv.location = mapped.location ?? '';
+    cv.website = mapped.website ?? '';
+    cv.summary = mapped.summary ?? '';
+    cv.skills = mapped.skills?.length ? [...mapped.skills] : [];
+    cv.experience = mapped.experience?.length ? mapped.experience.map((job) => ({ ...job })) : [];
+    cv.education = mapped.education?.length ? mapped.education.map((item) => ({ ...item })) : [];
+}
+
+async function postToolJson<T>(url: string, body: unknown, accept = 'application/json'): Promise<Response> {
+    return fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            Accept: accept,
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken(),
+            'X-XSRF-TOKEN': csrfToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify(body),
+    });
+}
+
+async function importResume(resume: unknown) {
+    error.value = '';
+    jsonBusy.value = 'import';
+
+    try {
+        const response = await postToolJson('/tools/cv-builder/json-resume/import', {
+            template: cv.template,
+            resume,
+        });
+        const payload = (await response.json().catch(() => null)) as { data?: CvDraft; message?: string } | null;
+
+        if (response.status === 403) {
+            error.value = 'The five free Pro uses are finished. Subscribe to keep using CV import.';
+            return;
+        }
+
+        if (!response.ok || !payload?.data) {
+            error.value = payload?.message || 'That file is not a JSON Resume object we can map.';
+            return;
+        }
+
+        applyMapped(payload.data);
+        panel.value = 'edit';
+    } finally {
+        jsonBusy.value = '';
+    }
+}
+
+async function importPasted() {
+    try {
+        await importResume(JSON.parse(jsonPaste.value));
+    } catch {
+        error.value = 'Paste valid JSON from a resume.json file.';
+    }
+}
+
+async function importFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    try {
+        await importResume(JSON.parse(await file.text()));
+    } catch {
+        error.value = 'That file is not valid JSON.';
+    } finally {
+        input.value = '';
+    }
+}
+
+async function importRegistry() {
+    const username = registryUser.value.trim();
+
+    if (username === '') {
+        return;
+    }
+
+    error.value = '';
+    jsonBusy.value = 'registry';
+
+    try {
+        const response = await postToolJson('/tools/cv-builder/json-resume/registry', {
+            template: cv.template,
+            username,
+        });
+        const payload = (await response.json().catch(() => null)) as { data?: CvDraft; message?: string } | null;
+
+        if (!response.ok || !payload?.data) {
+            error.value = payload?.message || 'The JSON Resume registry could not be read.';
+            return;
+        }
+
+        applyMapped(payload.data);
+        panel.value = 'edit';
+    } finally {
+        jsonBusy.value = '';
+    }
+}
+
+async function exportJsonResume() {
+    error.value = '';
+    jsonBusy.value = 'export';
+
+    try {
+        const response = await postToolJson('/tools/cv-builder/json-resume/export', cvPayload());
+
+        if (response.status === 403) {
+            error.value = 'The five free Pro uses are finished. Subscribe to keep exporting JSON Resume files.';
+            return;
+        }
+
+        if (!response.ok) {
+            error.value = 'The JSON Resume file could not be exported. Check the required name field.';
+            return;
+        }
+
+        const blob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'resume.json';
+        link.click();
+        URL.revokeObjectURL(link.href);
+    } finally {
+        jsonBusy.value = '';
+    }
+}
+
+function applySuggestion() {
+    if (!suggestion.value?.patch) {
+        return;
+    }
+
+    const patch = suggestion.value.patch;
+
+    if (patch.headline !== undefined) {
+        cv.headline = patch.headline;
+    }
+
+    if (patch.summary !== undefined) {
+        cv.summary = patch.summary;
+    }
+
+    if (patch.skills) {
+        cv.skills = [...patch.skills];
+    }
+
+    if (patch.experience) {
+        cv.experience = patch.experience.map((job) => ({ ...job }));
+    }
+
+    if (patch.education) {
+        cv.education = patch.education.map((item) => ({ ...item }));
+    }
+
+    panel.value = 'edit';
+}
+
+async function sendChat() {
+    const message = instruction.value.trim();
+
+    if (message === '') {
+        return;
+    }
+
+    chatBusy.value = true;
+    error.value = '';
+
+    const response = await postJson<{
+        mode: string;
+        notice: string | null;
+        reply: string;
+        patch: Partial<CvDraft> | null;
+        usage: { used: number; limit: number; remaining: number; window: string; plan: string };
+    }>('/api/v1/tools/cv-builder/generate', {
+        instruction: message,
+        cv: cvPayload(),
+        history: chat.value.slice(-8),
+    });
+
+    chatBusy.value = false;
+
+    if (response.status === 429) {
+        error.value = response.message;
+        return;
+    }
+
+    if (!response.ok || !response.data) {
+        error.value = response.message;
+        return;
+    }
+
+    chat.value.push({ role: 'user', content: message }, { role: 'assistant', content: response.data.reply });
+    suggestion.value = response.data;
+    usageState.value = response.data.usage;
+    instruction.value = '';
+}
 </script>
 
 <template>
     <div class="layout">
+        <div class="toolbar">
+            <Button type="button" :variant="panel === 'edit' ? 'default' : 'outline'" @click="panel = 'edit'">CV</Button>
+            <Button type="button" :variant="panel === 'json' ? 'default' : 'outline'" @click="panel = 'json'">JSON Resume</Button>
+            <Button type="button" :variant="panel === 'chat' ? 'default' : 'outline'" @click="panel = 'chat'">DeepSeek chat</Button>
+        </div>
         <fieldset class="gallery-wrap">
             <legend class="label">Template</legend>
             <div class="gallery">
@@ -218,7 +468,7 @@ async function downloadPdf() {
                 </button>
             </div>
         </fieldset>
-        <form class="panel" @submit.prevent="downloadPdf">
+        <form v-if="panel === 'edit'" class="panel" @submit.prevent="downloadPdf">
             <FormField label="Full name"><input v-model="cv.full_name" class="field" /></FormField>
             <FormField label="Headline"><input v-model="cv.headline" class="field" /></FormField>
             <FormField
@@ -261,6 +511,62 @@ async function downloadPdf() {
             <p v-if="error" class="error">{{ error }}</p>
             <Button type="submit" :disabled="downloading">{{ downloading ? 'Preparing PDF…' : 'Download PDF' }}</Button>
         </form>
+        <div v-else-if="panel === 'json'" class="panel">
+            <p class="meta">
+                JSON Resume is an open <code>resume.json</code> format.
+                This tool maps name, headline, contact, summary, work, education, and skills.
+                Awards, volunteer, projects, languages, and remote photo URLs are skipped.
+                QuickSolve does not publish to the registry.
+            </p>
+            <FormField label="Upload resume.json">
+                <input class="field" type="file" accept="application/json,.json" @change="importFile" />
+            </FormField>
+            <FormField label="Paste JSON">
+                <textarea v-model="jsonPaste" class="field" rows="8" placeholder='{"basics":{"name":"Ada North"}}' />
+            </FormField>
+            <Button type="button" variant="outline" :disabled="jsonBusy !== ''" @click="importPasted">
+                {{ jsonBusy === 'import' ? 'Importing…' : 'Import pasted JSON' }}
+            </Button>
+            <FormField
+                label="Registry username"
+                hint="Loads https://registry.jsonresume.org/your-github-username.json. The username must already have a public resume.json gist."
+            >
+                <input v-model="registryUser" class="field" placeholder="thomasdavis" />
+            </FormField>
+            <div class="row">
+                <Button type="button" variant="outline" :disabled="jsonBusy !== ''" @click="importRegistry">
+                    {{ jsonBusy === 'registry' ? 'Loading…' : 'Load from registry' }}
+                </Button>
+                <Button type="button" :disabled="jsonBusy !== ''" @click="exportJsonResume">
+                    {{ jsonBusy === 'export' ? 'Preparing…' : 'Download resume.json' }}
+                </Button>
+            </div>
+            <p v-if="error && panel === 'json'" class="error">{{ error }}</p>
+        </div>
+        <div v-else class="panel">
+            <p v-if="demoMode" class="demo">
+                Demo mode is on because no DeepSeek API key is configured. Replies are assembled from the form and labeled as a demo.
+            </p>
+            <p v-else class="live">Requests are sent to DeepSeek on the server. A failed request stays an error and is not replaced with demo text.</p>
+            <p v-if="usageState" class="meta">{{ usageState.remaining }} of {{ usageState.limit }} generations left this {{ usageState.window }}.</p>
+            <div class="chat" aria-live="polite">
+                <p v-if="chat.length === 0" class="meta">Ask to tighten the summary or rephrase bullets already on the form. The model should not invent jobs or dates.</p>
+                <article v-for="(turn, index) in chat" :key="index" class="turn" :class="turn.role">
+                    <p class="label">{{ turn.role === 'user' ? 'You' : 'Reply' }}</p>
+                    <pre class="body">{{ turn.content }}</pre>
+                </article>
+            </div>
+            <FormField label="Message">
+                <textarea v-model="instruction" class="field" rows="3" placeholder="Tighten the summary using only the facts already in the form" />
+            </FormField>
+            <ErrorState v-if="error && panel === 'chat'" :message="error" />
+            <div class="row">
+                <Button type="button" :disabled="chatBusy" @click="sendChat">{{ chatBusy ? 'Working…' : 'Send to DeepSeek' }}</Button>
+                <Button type="button" variant="outline" :disabled="!suggestion?.patch" @click="applySuggestion">Apply to form</Button>
+            </div>
+            <p v-if="suggestion?.mode === 'demo'" class="demo">{{ suggestion.notice }}</p>
+            <p v-else-if="suggestion?.mode === 'live'" class="ok">Live DeepSeek response.</p>
+        </div>
         <CvPreview :cv="cv" />
     </div>
 </template>
@@ -270,8 +576,38 @@ async function downloadPdf() {
     @apply grid gap-6 lg:grid-cols-2;
 }
 
+.toolbar,
 .gallery-wrap {
     @apply min-w-0 lg:col-span-2;
+}
+
+.toolbar {
+    @apply flex flex-wrap gap-2;
+}
+
+.meta {
+    @apply text-sm text-slate-600 dark:text-slate-300;
+}
+
+.demo {
+    @apply text-sm text-amber-800 dark:text-amber-200;
+}
+
+.live,
+.ok {
+    @apply text-sm text-emerald-800 dark:text-emerald-200;
+}
+
+.chat {
+    @apply max-h-72 space-y-3 overflow-y-auto rounded-lg border p-3;
+}
+
+.turn .label {
+    @apply text-xs font-medium uppercase tracking-wide text-slate-500;
+}
+
+.turn .body {
+    @apply whitespace-pre-wrap text-sm;
 }
 
 .gallery {

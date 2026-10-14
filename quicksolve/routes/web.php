@@ -5,12 +5,13 @@ use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CoverLetterController;
 use App\Http\Controllers\CvController;
-use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DownloadController;
+use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\FreelanceRateReportController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\JsonResumeController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PaymentLandingController;
 use App\Http\Controllers\QuoteController;
@@ -42,6 +43,15 @@ Route::post('/tools/invoice-generator/pdf', [InvoiceController::class, 'pdf'])
 Route::post('/tools/cv-builder/pdf', [CvController::class, 'pdf'])
     ->middleware('throttle:pdf')
     ->name('tools.cv-pdf');
+Route::post('/tools/cv-builder/json-resume/import', [JsonResumeController::class, 'import'])
+    ->middleware('throttle:pdf')
+    ->name('tools.cv-json-import');
+Route::post('/tools/cv-builder/json-resume/export', [JsonResumeController::class, 'export'])
+    ->middleware('throttle:pdf')
+    ->name('tools.cv-json-export');
+Route::post('/tools/cv-builder/json-resume/registry', [JsonResumeController::class, 'registry'])
+    ->middleware('throttle:pdf')
+    ->name('tools.cv-json-registry');
 Route::post('/tools/email-templates/download', [EmailTemplateController::class, 'download'])
     ->middleware('throttle:pdf')
     ->name('tools.email-templates-download');

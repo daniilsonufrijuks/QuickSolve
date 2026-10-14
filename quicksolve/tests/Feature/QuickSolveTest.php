@@ -829,6 +829,131 @@ test('cv pdf downloads during trial uses and lock after five visits', function (
     $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'photo' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='])->assertSessionHasErrors('photo');
 });
 
+test('json resume import maps overlapping fields and skips unmapped sections', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $this->seed();
+
+    $this->postJson('/tools/cv-builder/json-resume/import', [
+        'template' => 'atlantic',
+        'resume' => [
+            'basics' => [
+                'name' => 'Lorna Alvarado',
+                'label' => 'Sales Representative',
+                'email' => 'lorna@example.com',
+                'phone' => '555-0100',
+                'url' => 'https://lorna.example',
+                'summary' => 'Sells catalog tools to small teams.',
+                'location' => ['city' => 'Tallinn', 'countryCode' => 'EE'],
+            ],
+            'work' => [[
+                'name' => 'North Studio',
+                'position' => 'Sales lead',
+                'startDate' => '2022-01',
+                'highlights' => ['Closed retail accounts'],
+            ]],
+            'education' => [[
+                'institution' => 'Art school',
+                'studyType' => 'BA',
+                'area' => 'Design',
+                'startDate' => '2016',
+                'endDate' => '2020',
+            ]],
+            'skills' => [['name' => 'Salesforce', 'keywords' => ['CRM']]],
+            'awards' => [['title' => 'Should not appear']],
+            'volunteer' => [['organization' => 'Skipped']],
+        ],
+    ])->assertOk()
+        ->assertJsonPath('data.full_name', 'Lorna Alvarado')
+        ->assertJsonPath('data.headline', 'Sales Representative')
+        ->assertJsonPath('data.location', 'Tallinn, EE')
+        ->assertJsonPath('data.experience.0.company', 'North Studio')
+        ->assertJsonPath('data.education.0.school', 'Art school')
+        ->assertJsonMissing(['Should not appear'])
+        ->assertJsonMissing(['Skipped']);
+
+    $this->post('/tools/cv-builder/json-resume/export', [
+        'template' => 'classic',
+        'full_name' => 'Ada North',
+        'headline' => 'Designer',
+        'email' => 'ada@example.com',
+        'skills' => ['Figma'],
+        'experience' => [['role' => 'Designer', 'company' => 'Studio', 'dates' => '2022 — 2024', 'details' => 'Shipped UI']],
+        'education' => [['school' => 'Art school', 'credential' => 'BA', 'dates' => '2016 — 2020']],
+    ])->assertOk()
+        ->assertHeader('content-type', 'application/json; charset=UTF-8')
+        ->assertSee('$schema', false)
+        ->assertSee('Ada North', false)
+        ->assertSee('2022', false);
+});
+
+test('json resume registry loads only the official host', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    Http::preventStrayRequests();
+    Http::fake([
+        'https://registry.jsonresume.org/thomasdavis.json' => Http::response([
+            'basics' => ['name' => 'Thomas Davis', 'label' => 'Web developer'],
+        ], 200),
+        'https://registry.jsonresume.org/missing-user.json' => Http::response(['error' => 'not found'], 404),
+    ]);
+    $this->seed();
+
+    $this->postJson('/tools/cv-builder/json-resume/registry', [
+        'username' => 'thomasdavis',
+        'template' => 'classic',
+    ])->assertOk()->assertJsonPath('data.full_name', 'Thomas Davis');
+
+    $this->postJson('/tools/cv-builder/json-resume/registry', [
+        'username' => 'missing-user',
+    ])->assertNotFound();
+
+    $this->postJson('/tools/cv-builder/json-resume/registry', [
+        'username' => 'https://evil.example/steal',
+    ])->assertUnprocessable()->assertJsonValidationErrors('username');
+});
+
+test('cv deepseek chat stays in demo mode without a provider key', function () {
+    config(['quicksolve.ai.api_key' => null]);
+    $this->seed();
+
+    $this->postJson('/api/v1/tools/cv-builder/generate', [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['instruction', 'cv']);
+
+    $response = $this->postJson('/api/v1/tools/cv-builder/generate', [
+        'instruction' => 'Tighten the summary',
+        'cv' => [
+            'full_name' => 'Ada North',
+            'summary' => 'Designer who ships clear interfaces for small teams. Comfortable from research through handoff and workshops.',
+            'skills' => ['Figma'],
+            'experience' => [['role' => 'Designer', 'company' => 'Studio']],
+        ],
+    ]);
+
+    $response->assertOk()->assertJsonPath('data.mode', 'demo');
+    expect($response->json('data.patch.summary'))->toBeString()->not->toBeEmpty();
+
+    expect($response->json('data.notice'))->toContain('Demo mode');
+    expect($response->json('data.reply'))->toContain('shorter summary');
+    expect(UsageEvent::query()->where('tool_slug', 'cv-builder')->where('usage_type', 'generated')->count())->toBe(1);
+});
+
+test('a failed cv chat provider does not return demo copy', function () {
+    config(['quicksolve.ai.api_key' => 'test-key']);
+    Http::preventStrayRequests();
+    Http::fake(['api.deepseek.com/*' => Http::response(['error' => 'unavailable'], 503)]);
+    $this->seed();
+
+    $this->postJson('/api/v1/tools/cv-builder/generate', [
+        'instruction' => 'Tighten the summary',
+        'cv' => [
+            'full_name' => 'Ada',
+            'summary' => 'Designer who ships interfaces.',
+        ],
+    ])->assertStatus(503);
+
+    expect(UsageEvent::query()->where('tool_slug', 'cv-builder')->where('usage_type', 'generated')->count())->toBe(0);
+});
+
 test('email template drafts download during trial uses', function () {
     config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
     $this->seed();
