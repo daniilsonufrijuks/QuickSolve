@@ -562,6 +562,25 @@ test('pdf and image tools stay locked after trial uses until a verified plan is 
         ->assertInertia(fn ($page) => $page->where('locked', false));
 });
 
+test('the image converter page names png ico jpeg svg and pdf in its copy', function () {
+    $this->seed();
+
+    $tool = Tool::query()->where('slug', 'image-converter')->firstOrFail();
+
+    expect($tool->description)->toContain('PNG')
+        ->and($tool->description)->toContain('ICO')
+        ->and($tool->description)->toContain('JPEG')
+        ->and($tool->description)->toContain('SVG')
+        ->and($tool->long_description)->toContain('not a traced vector');
+
+    $this->get('/tools/image-converter')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('tool.slug', 'image-converter')
+            ->where('locked', false)
+            ->where('tool.description', $tool->description));
+});
+
 test('the pdf editor page names merge split and compress in its copy', function () {
     $this->seed();
 
@@ -581,6 +600,7 @@ test('the new catalog tools and templates are published', function () {
     $this->seed();
 
     foreach ([
+        'image-converter',
         'break-even-calculator',
         'timesheet-calculator',
         'serp-snippet-preview',

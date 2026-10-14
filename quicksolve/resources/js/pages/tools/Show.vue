@@ -34,6 +34,7 @@ import { Link } from '@inertiajs/vue3';
 import { defineAsyncComponent } from 'vue';
 
 const ImageResizer = defineAsyncComponent(() => import('@/components/tools/ImageResizer.vue'));
+const ImageConverter = defineAsyncComponent(() => import('@/components/tools/ImageConverter.vue'));
 const PdfEditor = defineAsyncComponent(() => import('@/components/tools/PdfEditor.vue'));
 
 defineProps<{
@@ -90,6 +91,7 @@ defineProps<{
                 <QrCodeGenerator v-else-if="tool.slug === 'qr-code-generator'" :branding="premium" />
                 <PdfEditor v-else-if="tool.slug === 'pdf-viewer-editor'" />
                 <ImageResizer v-else-if="tool.slug === 'image-resizer'" />
+                <ImageConverter v-else-if="tool.slug === 'image-converter'" />
                 <BreakEvenCalculator v-else-if="tool.slug === 'break-even-calculator'" />
                 <TimesheetCalculator v-else-if="tool.slug === 'timesheet-calculator'" />
                 <SerpSnippetPreview v-else-if="tool.slug === 'serp-snippet-preview'" />

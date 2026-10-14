@@ -171,6 +171,24 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
             [
+                'slug' => 'image-converter',
+                'category' => 'converters',
+                'name' => 'Image Converter',
+                'description' => 'Convert PNG, JPEG, WebP, GIF, BMP, SVG, ICO, and PDF in the browser. PNG to ICO, JPEG, SVG, or PDF, and the reverse. The file never leaves this tab.',
+                'icon' => 'image',
+                'access_type' => AccessType::Free,
+                'is_featured' => true,
+                'popularity' => 24,
+                'long_description' => 'Open a PNG, JPEG, JPG, JFIF, WebP, GIF, BMP, SVG, ICO, or PDF and download it as PNG, JPEG, JPG, WebP, BMP, ICO, SVG, or PDF. Work runs in your browser. GIF animation is not kept (first frame only). SVG download embeds the bitmap; it is not a traced vector drawing. ICO download includes 16, 32, 48, and 256 pixel PNG frames. PDF input uses the first page; PDF output is one page at the image size. HEIC and animated export are not supported.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is the file uploaded?', 'a' => 'No. Conversion uses the canvas in your browser. Closing the tab discards it unless you download a copy.'],
+                        ['q' => 'Is PNG to SVG a real vector file?', 'a' => 'No. The SVG wraps the bitmap so it can sit in an .svg file. Paths are not traced.'],
+                        ['q' => 'Can I convert HEIC?', 'a' => 'No. This browser tool cannot decode HEIC or HEIF. Export JPEG or PNG from the phone first.'],
+                    ],
+                ],
+            ],
+            [
                 'slug' => 'image-resizer',
                 'category' => 'converters',
                 'name' => 'Image Resizer',
