@@ -371,15 +371,16 @@ class DatabaseSeeder extends Seeder
                 'slug' => 'cv-builder',
                 'category' => 'business-productivity',
                 'name' => 'CV templates',
-                'description' => 'Pick a layout, edit your details, and download a PDF résumé.',
+                'description' => 'Pick a visual layout, edit your details, add a photo if you want, and download a PDF résumé.',
                 'icon' => 'file-text',
                 'access_type' => AccessType::Premium,
                 'is_featured' => true,
                 'popularity' => 19,
-                'long_description' => 'Nine layouts share the same fields: classic, modern sidebar, compact, executive, timeline, creative band, split rail, banner, and mosaic. The first five Pro-tool uses are free. After that, a Pro or Business plan is required. The PDF is a document you can send; it does not apply for jobs.',
+                'long_description' => 'Seventeen layouts share the same fields: classic, modern sidebar, compact, executive, timeline, creative band, split rail, banner, mosaic, navy sidebar, photo header, black contrast, centered serif, warm beige, maroon sidebar, dark masthead, and green sidebar. Optional JPEG or PNG photo, or initials if you skip it. The first five Pro-tool uses are free. After that, a Pro or Business plan is required. The PDF is a document you can send; it does not apply for jobs.',
                 'metadata' => [
                     'faqs' => [
                         ['q' => 'Can I change the layout after writing?', 'a' => 'Yes. The templates reuse the same text. Switch layouts before you download.'],
+                        ['q' => 'Can I add a photo?', 'a' => 'Yes. Optional JPEG or PNG stays in the browser until you download. Initials show if you skip the photo. HEIC is not supported.'],
                         ['q' => 'Do I need Pro?', 'a' => 'Five Pro-tool uses are free, including this one. Further downloads need a Pro or Business subscription.'],
                     ],
                 ],

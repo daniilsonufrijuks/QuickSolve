@@ -19,6 +19,7 @@ use App\Services\Documents\DocumentBranding;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Cashier\Subscription;
 
 test('guests can list published tools and cannot see drafts', function () {
     $published = Tool::factory()->create(['name' => 'Visible tool', 'is_published' => true]);
@@ -723,7 +724,7 @@ test('admins can save billing settings, manage users, and mark refunds', functio
         'quantity' => 1,
     ])->assertRedirect();
 
-    $subscription = \Laravel\Cashier\Subscription::query()->where('user_id', $member->id)->first();
+    $subscription = Subscription::query()->where('user_id', $member->id)->first();
     expect($subscription)->not->toBeNull()
         ->and($subscription->stripe_status)->toBe('active')
         ->and($subscription->items()->count())->toBe(1);
@@ -742,7 +743,7 @@ test('admins can save billing settings, manage users, and mark refunds', functio
     expect($subscription->fresh()->stripe_status)->toBe('canceled');
 
     $this->actingAs($admin)->delete('/admin/subscriptions/'.$subscription->id)->assertRedirect();
-    expect(\Laravel\Cashier\Subscription::query()->whereKey($subscription->id)->exists())->toBeFalse();
+    expect(Subscription::query()->whereKey($subscription->id)->exists())->toBeFalse();
 
     $this->actingAs($member)->post('/admin/subscriptions', [
         'user_id' => $member->id,
@@ -814,13 +815,18 @@ test('cv pdf downloads during trial uses and lock after five visits', function (
     ]);
 
     $this->actingAs($pro)->post('/tools/cv-builder/pdf', $payload)->assertOk();
-    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'executive'])->assertOk();
-    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'timeline'])->assertOk();
-    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'creative'])->assertOk();
-    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'split'])->assertOk();
-    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'banner'])->assertOk();
-    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'mosaic'])->assertOk();
+
+    foreach ([
+        'executive', 'timeline', 'creative', 'split', 'banner', 'mosaic',
+        'atlantic', 'portrait', 'mono', 'academic', 'sand', 'rose', 'slate', 'forest',
+    ] as $template) {
+        $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => $template])->assertOk();
+    }
+
+    $jpeg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//Z';
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'rose', 'photo' => $jpeg])->assertOk();
     $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'template' => 'unknown'])->assertSessionHasErrors('template');
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'photo' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='])->assertSessionHasErrors('photo');
 });
 
 test('email template drafts download during trial uses', function () {
@@ -1034,7 +1040,7 @@ test('quote builder cover letter and cash runway are published premium tools', f
     ]);
 
     $this->actingAs($pro)->post('/quotes', $quote)->assertRedirect(route('dashboard.documents'));
-    expect(\App\Models\GeneratedDocument::query()->where('user_id', $pro->id)->where('document_type', 'quote')->count())->toBe(1);
+    expect(GeneratedDocument::query()->where('user_id', $pro->id)->where('document_type', 'quote')->count())->toBe(1);
 });
 
 test('document branding and csv export follow the plan', function () {

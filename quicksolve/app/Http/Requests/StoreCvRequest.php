@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Services\Billing\PlanResolver;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCvRequest extends FormRequest
 {
@@ -26,8 +27,36 @@ class StoreCvRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'template' => ['required', 'in:classic,modern,compact,executive,timeline,creative,split,banner,mosaic'],
+            'template' => ['required', Rule::in([
+                'classic',
+                'modern',
+                'compact',
+                'executive',
+                'timeline',
+                'creative',
+                'split',
+                'banner',
+                'mosaic',
+                'atlantic',
+                'portrait',
+                'mono',
+                'academic',
+                'sand',
+                'rose',
+                'slate',
+                'forest',
+            ])],
             'full_name' => ['required', 'string', 'max:160'],
+            'photo' => [
+                'nullable',
+                'string',
+                'max:120000',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! is_string($value) || preg_match('/^data:image\/jpeg;base64,[A-Za-z0-9\/+=]+$/', $value) !== 1) {
+                        $fail('The '.$attribute.' must be a JPEG image.');
+                    }
+                },
+            ],
             'headline' => ['nullable', 'string', 'max:160'],
             'email' => ['nullable', 'email', 'max:160'],
             'phone' => ['nullable', 'string', 'max:60'],

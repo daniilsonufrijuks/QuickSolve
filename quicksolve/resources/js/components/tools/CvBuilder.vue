@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import FormField from '@/components/marketing/FormField.vue';
+import CvPreview from '@/components/tools/CvPreview.vue';
+import type { CvDraft, CvEducation, CvExperience } from '@/components/tools/CvPreview.vue';
 import { Button } from '@/components/ui/button';
 import { reactive, ref } from 'vue';
-
-type Experience = { role: string; company: string; dates: string; details: string };
-type Education = { school: string; credential: string; dates: string };
 
 const templates = [
     { id: 'classic', name: 'Classic' },
@@ -16,10 +15,18 @@ const templates = [
     { id: 'split', name: 'Split rail' },
     { id: 'banner', name: 'Banner' },
     { id: 'mosaic', name: 'Mosaic' },
+    { id: 'atlantic', name: 'Navy sidebar' },
+    { id: 'portrait', name: 'Photo header' },
+    { id: 'mono', name: 'Black contrast' },
+    { id: 'academic', name: 'Centered serif' },
+    { id: 'sand', name: 'Warm beige' },
+    { id: 'rose', name: 'Maroon sidebar' },
+    { id: 'slate', name: 'Dark masthead' },
+    { id: 'forest', name: 'Green sidebar' },
 ] as const;
 
-const cv = reactive({
-    template: 'classic' as (typeof templates)[number]['id'],
+const cv = reactive<CvDraft>({
+    template: 'atlantic',
     full_name: 'Ada North',
     headline: 'Product designer',
     email: 'ada@example.com',
@@ -27,6 +34,7 @@ const cv = reactive({
     location: 'Tallinn',
     website: 'adanorth.example',
     summary: 'Designer who ships clear interfaces for small teams. Comfortable from research through handoff.',
+    photo: '',
     skills: ['Figma', 'User research', 'HTML/CSS'],
     experience: [
         {
@@ -35,8 +43,8 @@ const cv = reactive({
             dates: '2022 — present',
             details: 'Ran product design for a catalog of business tools. Set type, spacing, and review habits.',
         },
-    ] as Experience[],
-    education: [{ school: 'Estonian Academy of Arts', credential: 'BA Graphic design', dates: '2016 — 2020' }] as Education[],
+    ] as CvExperience[],
+    education: [{ school: 'Estonian Academy of Arts', credential: 'BA Graphic design', dates: '2016 — 2020' }] as CvEducation[],
 });
 
 const error = ref('');
@@ -61,11 +69,94 @@ function csrfToken(): string {
     return meta?.content || cookie;
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('Could not read that photo.'));
+        image.src = src;
+    });
+}
+
+async function onPhoto(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    error.value = '';
+
+    if (!file) {
+        return;
+    }
+
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type) || file.size > 2 * 1024 * 1024) {
+        error.value = 'Use a JPEG, PNG, or WebP photo under 2 MB. Initials are used if you skip this.';
+        input.value = '';
+
+        return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+
+    try {
+        const image = await loadImage(objectUrl);
+        const canvas = document.createElement('canvas');
+        const size = 240;
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            throw new Error('Could not prepare that photo.');
+        }
+
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+
+        let quality = 0.82;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        while (dataUrl.length > 110000 && quality > 0.45) {
+            quality -= 0.12;
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        if (dataUrl.length > 110000) {
+            error.value = 'That photo is too detailed after resize. Try a simpler crop.';
+
+            return;
+        }
+
+        cv.photo = dataUrl;
+    } catch {
+        error.value = 'That photo could not be read. Try a JPEG or PNG.';
+    } finally {
+        URL.revokeObjectURL(objectUrl);
+        input.value = '';
+    }
+}
+
+function clearPhoto() {
+    cv.photo = '';
+}
+
 async function downloadPdf() {
     error.value = '';
     downloading.value = true;
 
     try {
+        const payload: Record<string, unknown> = {
+            ...cv,
+            skills: cv.skills.map((skill) => skill.trim()).filter(Boolean),
+            experience: cv.experience.filter((job) => job.role.trim() !== ''),
+            education: cv.education.filter((item) => item.school.trim() !== ''),
+        };
+
+        if (!cv.photo) {
+            delete payload.photo;
+        }
+
         const response = await fetch('/tools/cv-builder/pdf', {
             method: 'POST',
             credentials: 'same-origin',
@@ -76,12 +167,7 @@ async function downloadPdf() {
                 'X-XSRF-TOKEN': csrfToken(),
                 'X-Requested-With': 'XMLHttpRequest',
             },
-            body: JSON.stringify({
-                ...cv,
-                skills: cv.skills.map((skill) => skill.trim()).filter(Boolean),
-                experience: cv.experience.filter((job) => job.role.trim() !== ''),
-                education: cv.education.filter((item) => item.school.trim() !== ''),
-            }),
+            body: JSON.stringify(payload),
         });
 
         if (response.status === 403) {
@@ -104,36 +190,59 @@ async function downloadPdf() {
         downloading.value = false;
     }
 }
-
-const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(Boolean).join(' · ');
 </script>
 
 <template>
     <div class="layout">
+        <fieldset class="gallery-wrap">
+            <legend class="label">Template</legend>
+            <div class="gallery">
+                <button
+                    v-for="item in templates"
+                    :key="item.id"
+                    type="button"
+                    class="thumb"
+                    :class="{ on: cv.template === item.id }"
+                    :aria-pressed="cv.template === item.id"
+                    @click="cv.template = item.id"
+                >
+                    <span class="shot" :class="item.id" aria-hidden="true">
+                        <span class="s" />
+                        <span class="p" />
+                        <span class="h" />
+                        <span class="l" />
+                        <span class="l2" />
+                        <span class="l3" />
+                    </span>
+                    <span class="thumb-name">{{ item.name }}</span>
+                </button>
+            </div>
+        </fieldset>
         <form class="panel" @submit.prevent="downloadPdf">
-            <FormField label="Template">
-                <div class="templates">
-                    <label v-for="item in templates" :key="item.id" class="choice">
-                        <input v-model="cv.template" type="radio" :value="item.id" />
-                        {{ item.name }}
-                    </label>
-                </div>
-            </FormField>
             <FormField label="Full name"><input v-model="cv.full_name" class="field" /></FormField>
             <FormField label="Headline"><input v-model="cv.headline" class="field" /></FormField>
+            <FormField
+                label="Photo"
+                hint="Optional JPEG, PNG, or WebP under 2 MB. Cropped to a circle in the browser. Initials show if you skip it. HEIC is not supported."
+            >
+                <div class="photo-row">
+                    <input class="field" type="file" accept="image/jpeg,image/png,image/webp" @change="onPhoto" />
+                    <Button v-if="cv.photo" type="button" variant="ghost" @click="clearPhoto">Remove</Button>
+                </div>
+            </FormField>
             <FormField label="Email"><input v-model="cv.email" class="field" type="email" /></FormField>
             <FormField label="Phone"><input v-model="cv.phone" class="field" /></FormField>
             <FormField label="Location"><input v-model="cv.location" class="field" /></FormField>
             <FormField label="Website"><input v-model="cv.website" class="field" /></FormField>
             <FormField label="Summary"><textarea v-model="cv.summary" class="field" rows="4" /></FormField>
             <p class="label">Skills</p>
-            <div v-for="(_, index) in cv.skills" :key="'s'+index" class="row">
+            <div v-for="(_, index) in cv.skills" :key="'s' + index" class="row">
                 <input v-model="cv.skills[index]" class="field" />
                 <Button type="button" variant="ghost" @click="cv.skills.splice(index, 1)">Remove</Button>
             </div>
             <Button type="button" variant="outline" @click="addSkill">Add skill</Button>
             <p class="label">Experience</p>
-            <div v-for="(job, index) in cv.experience" :key="'j'+index" class="group">
+            <div v-for="(job, index) in cv.experience" :key="'j' + index" class="group">
                 <input v-model="job.role" class="field" placeholder="Role" />
                 <input v-model="job.company" class="field" placeholder="Company" />
                 <input v-model="job.dates" class="field" placeholder="Dates" />
@@ -142,7 +251,7 @@ const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(B
             </div>
             <Button type="button" variant="outline" @click="addExperience">Add experience</Button>
             <p class="label">Education</p>
-            <div v-for="(item, index) in cv.education" :key="'e'+index" class="group">
+            <div v-for="(item, index) in cv.education" :key="'e' + index" class="group">
                 <input v-model="item.school" class="field" placeholder="School" />
                 <input v-model="item.credential" class="field" placeholder="Credential" />
                 <input v-model="item.dates" class="field" placeholder="Dates" />
@@ -152,151 +261,7 @@ const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(B
             <p v-if="error" class="error">{{ error }}</p>
             <Button type="submit" :disabled="downloading">{{ downloading ? 'Preparing PDF…' : 'Download PDF' }}</Button>
         </form>
-        <section class="preview" :class="cv.template" aria-label="CV preview">
-            <div v-if="cv.template === 'modern'" class="modern-grid">
-                <aside class="side">
-                    <h2>{{ cv.full_name }}</h2>
-                    <p>{{ cv.headline }}</p>
-                    <p class="small">{{ contactLine() }}</p>
-                    <p class="heading">Skills</p>
-                    <p class="small">{{ cv.skills.filter(Boolean).join(', ') }}</p>
-                </aside>
-                <div>
-                    <p class="heading">Profile</p>
-                    <p class="body">{{ cv.summary }}</p>
-                    <p class="heading">Experience</p>
-                    <article v-for="job in cv.experience" :key="job.role + job.company" class="item">
-                        <p class="strong">{{ job.role }} · {{ job.company }}</p>
-                        <p class="small">{{ job.dates }}</p>
-                        <p class="body">{{ job.details }}</p>
-                    </article>
-                    <p class="heading">Education</p>
-                    <article v-for="item in cv.education" :key="item.school" class="item">
-                        <p class="strong">{{ item.school }}</p>
-                        <p class="small">{{ item.credential }} {{ item.dates }}</p>
-                    </article>
-                </div>
-            </div>
-            <div v-else-if="cv.template === 'split'" class="modern-grid">
-                <aside class="rail">
-                    <h2>{{ cv.full_name }}</h2>
-                    <p>{{ cv.headline }}</p>
-                    <p class="small">{{ contactLine() }}</p>
-                    <p class="heading">Skills</p>
-                    <p class="small">{{ cv.skills.filter(Boolean).join(', ') }}</p>
-                    <p class="heading">Education</p>
-                    <article v-for="item in cv.education" :key="item.school" class="item">
-                        <p class="strong">{{ item.school }}</p>
-                        <p class="small">{{ item.credential }} {{ item.dates }}</p>
-                    </article>
-                </aside>
-                <div>
-                    <p class="heading">Profile</p>
-                    <p class="body">{{ cv.summary }}</p>
-                    <p class="heading">Experience</p>
-                    <article v-for="job in cv.experience" :key="job.role + job.company" class="item">
-                        <p class="strong">{{ job.role }} · {{ job.company }}</p>
-                        <p class="small">{{ job.dates }}</p>
-                        <p class="body">{{ job.details }}</p>
-                    </article>
-                </div>
-            </div>
-            <div v-else-if="cv.template === 'banner'">
-                <header class="banner">
-                    <h2>{{ cv.full_name }}</h2>
-                    <p>{{ cv.headline }}</p>
-                    <p class="small">{{ contactLine() }}</p>
-                </header>
-                <p class="heading">Profile</p>
-                <p class="body">{{ cv.summary }}</p>
-                <p class="heading">Experience</p>
-                <article v-for="job in cv.experience" :key="job.role + job.company" class="item">
-                    <p class="strong">{{ job.role }} · {{ job.company }}</p>
-                    <p class="small">{{ job.dates }}</p>
-                    <p class="body">{{ job.details }}</p>
-                </article>
-                <p class="heading">Education</p>
-                <article v-for="item in cv.education" :key="item.school" class="item">
-                    <p class="strong">{{ item.school }}</p>
-                    <p class="small">{{ item.credential }} {{ item.dates }}</p>
-                </article>
-                <p class="heading">Skills</p>
-                <p class="chips"><span v-for="skill in cv.skills.filter(Boolean)" :key="skill">{{ skill }}</span></p>
-            </div>
-            <div v-else-if="cv.template === 'mosaic'" class="mosaic">
-                <h2>{{ cv.full_name }}</h2>
-                <p class="small">{{ cv.headline }}</p>
-                <p class="small">{{ contactLine() }}</p>
-                <p class="heading">Profile</p>
-                <p class="body">{{ cv.summary }}</p>
-                <div class="mosaic-cols">
-                    <div>
-                        <p class="heading">Education</p>
-                        <article v-for="item in cv.education" :key="item.school" class="item">
-                            <p class="strong">{{ item.school }}</p>
-                            <p class="small">{{ item.credential }} {{ item.dates }}</p>
-                        </article>
-                        <p class="heading">Skills</p>
-                        <p class="chips"><span v-for="skill in cv.skills.filter(Boolean)" :key="skill">{{ skill }}</span></p>
-                    </div>
-                    <div>
-                        <p class="heading">Experience</p>
-                        <article v-for="job in cv.experience" :key="job.role + job.company" class="item">
-                            <p class="strong">{{ job.role }} · {{ job.company }}</p>
-                            <p class="small">{{ job.dates }}</p>
-                            <p class="body">{{ job.details }}</p>
-                        </article>
-                    </div>
-                </div>
-            </div>
-            <div v-else-if="cv.template === 'timeline'" class="timeline">
-                <h2>{{ cv.full_name }}</h2>
-                <p class="small">{{ cv.headline }}</p>
-                <p class="small">{{ contactLine() }}</p>
-                <p class="heading">Profile</p>
-                <p class="body">{{ cv.summary }}</p>
-                <p class="heading">Experience</p>
-                <article v-for="job in cv.experience" :key="job.role + job.company" class="time-row">
-                    <p class="when">{{ job.dates }}</p>
-                    <div>
-                        <p class="strong">{{ job.role }} · {{ job.company }}</p>
-                        <p class="body">{{ job.details }}</p>
-                    </div>
-                </article>
-                <p class="heading">Education</p>
-                <article v-for="item in cv.education" :key="item.school" class="time-row">
-                    <p class="when">{{ item.dates }}</p>
-                    <div>
-                        <p class="strong">{{ item.school }}</p>
-                        <p class="small">{{ item.credential }}</p>
-                    </div>
-                </article>
-                <p class="heading">Skills</p>
-                <p class="chips"><span v-for="skill in cv.skills.filter(Boolean)" :key="skill">{{ skill }}</span></p>
-            </div>
-            <div v-else>
-                <header :class="{ exec: cv.template === 'executive' }">
-                    <h2>{{ cv.full_name }}</h2>
-                    <p class="small">{{ cv.headline }}</p>
-                    <p class="small">{{ contactLine() }}</p>
-                </header>
-                <p class="heading">Profile</p>
-                <p class="body">{{ cv.summary }}</p>
-                <p class="heading">Experience</p>
-                <article v-for="job in cv.experience" :key="job.role + job.company" class="item">
-                    <p class="strong">{{ job.role }} · {{ job.company }}</p>
-                    <p class="small">{{ job.dates }}</p>
-                    <p class="body">{{ job.details }}</p>
-                </article>
-                <p class="heading">Education</p>
-                <article v-for="item in cv.education" :key="item.school" class="item">
-                    <p class="strong">{{ item.school }}</p>
-                    <p class="small">{{ item.credential }} {{ item.dates }}</p>
-                </article>
-                <p class="heading">Skills</p>
-                <p class="chips"><span v-for="skill in cv.skills.filter(Boolean)" :key="skill">{{ skill }}</span></p>
-            </div>
-        </section>
+        <CvPreview :cv="cv" />
     </div>
 </template>
 
@@ -305,8 +270,620 @@ const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(B
     @apply grid gap-6 lg:grid-cols-2;
 }
 
-.panel,
-.preview {
+.gallery-wrap {
+    @apply min-w-0 lg:col-span-2;
+}
+
+.gallery {
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6;
+}
+
+.thumb {
+    @apply rounded-xl border bg-white p-2 text-left shadow-sm transition hover:border-sky-400 dark:border-slate-600 dark:bg-slate-900;
+}
+
+.thumb.on {
+    @apply border-sky-600 ring-2 ring-sky-200 dark:ring-sky-800;
+}
+
+.thumb-name {
+    @apply mt-1.5 block text-xs font-medium text-slate-700 dark:text-slate-200;
+}
+
+.shot {
+    position: relative;
+    display: block;
+    height: 88px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+
+.shot .s,
+.shot .p,
+.shot .h,
+.shot .l,
+.shot .l2,
+.shot .l3 {
+    position: absolute;
+}
+
+.shot .p {
+    border-radius: 999px;
+    background: #cbd5e1;
+}
+
+.shot .l,
+.shot .l2,
+.shot .l3 {
+    height: 4px;
+    border-radius: 2px;
+    background: #e2e8f0;
+}
+
+.shot.classic .h {
+    top: 12px;
+    right: 14px;
+    left: 14px;
+    height: 8px;
+    background: #0f172a;
+}
+
+.shot.classic .l {
+    top: 30px;
+    right: 20px;
+    left: 14px;
+}
+
+.shot.classic .l2 {
+    top: 48px;
+    right: 10px;
+    left: 14px;
+}
+
+.shot.classic .l3 {
+    top: 64px;
+    right: 28px;
+    left: 14px;
+}
+
+.shot.modern .s {
+    inset: 0 auto 0 0;
+    width: 34%;
+    background: #0f172a;
+}
+
+.shot.modern .h {
+    top: 12px;
+    right: 10px;
+    left: 42%;
+    height: 7px;
+    background: #1d4ed8;
+}
+
+.shot.modern .l {
+    top: 32px;
+    right: 12px;
+    left: 42%;
+}
+
+.shot.modern .l2 {
+    top: 50px;
+    right: 8px;
+    left: 42%;
+}
+
+.shot.modern .l3 {
+    top: 66px;
+    right: 22px;
+    left: 42%;
+}
+
+.shot.compact .h {
+    top: 8px;
+    right: 10px;
+    left: 10px;
+    height: 6px;
+    background: #334155;
+}
+
+.shot.compact .l,
+.shot.compact .l2,
+.shot.compact .l3 {
+    height: 3px;
+}
+
+.shot.compact .l {
+    top: 24px;
+    right: 10px;
+    left: 10px;
+}
+
+.shot.compact .l2 {
+    top: 40px;
+    right: 10px;
+    left: 10px;
+}
+
+.shot.compact .l3 {
+    top: 56px;
+    right: 10px;
+    left: 10px;
+}
+
+.shot.executive .h {
+    top: 14px;
+    right: 22px;
+    left: 22px;
+    height: 7px;
+    background: #0f172a;
+}
+
+.shot.executive .s {
+    top: 28px;
+    right: 32%;
+    left: 32%;
+    height: 2px;
+    background: #b45309;
+}
+
+.shot.executive .l {
+    top: 42px;
+    right: 14px;
+    left: 14px;
+}
+
+.shot.executive .l2 {
+    top: 58px;
+    right: 18px;
+    left: 14px;
+}
+
+.shot.timeline .h {
+    top: 10px;
+    right: 12px;
+    left: 12px;
+    height: 7px;
+    background: #0f172a;
+}
+
+.shot.timeline .s {
+    top: 28px;
+    bottom: 10px;
+    left: 10px;
+    width: 18%;
+    background: #e2e8f0;
+}
+
+.shot.timeline .l {
+    top: 32px;
+    right: 12px;
+    left: 36%;
+}
+
+.shot.timeline .l2 {
+    top: 50px;
+    right: 12px;
+    left: 36%;
+}
+
+.shot.timeline .l3 {
+    top: 68px;
+    right: 20px;
+    left: 36%;
+}
+
+.shot.creative .s {
+    inset: 0 auto 0 0;
+    width: 8px;
+    background: #6d28d9;
+}
+
+.shot.creative .h {
+    top: 12px;
+    right: 16px;
+    left: 18px;
+    height: 10px;
+    background: #6d28d9;
+}
+
+.shot.creative .l {
+    top: 36px;
+    right: 14px;
+    left: 18px;
+}
+
+.shot.creative .l2 {
+    top: 54px;
+    right: 10px;
+    left: 18px;
+}
+
+.shot.split .s {
+    inset: 0 auto 0 0;
+    width: 34%;
+    background: #ccfbf1;
+}
+
+.shot.split .h {
+    top: 12px;
+    right: 10px;
+    left: 42%;
+    height: 7px;
+    background: #0f766e;
+}
+
+.shot.split .l {
+    top: 32px;
+    right: 12px;
+    left: 42%;
+}
+
+.shot.split .l2 {
+    top: 50px;
+    right: 8px;
+    left: 42%;
+}
+
+.shot.banner .h {
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 28px;
+    background: #0f766e;
+}
+
+.shot.banner .l {
+    top: 40px;
+    right: 12px;
+    left: 10px;
+}
+
+.shot.banner .l2 {
+    top: 56px;
+    right: 16px;
+    left: 10px;
+}
+
+.shot.banner .l3 {
+    top: 72px;
+    right: 28px;
+    left: 10px;
+}
+
+.shot.mosaic .h {
+    top: 10px;
+    right: 36%;
+    left: 10px;
+    height: 7px;
+    background: #0369a1;
+}
+
+.shot.mosaic .l {
+    top: 32px;
+    bottom: 10px;
+    left: 10px;
+    width: 38%;
+    height: auto;
+    background: #e0f2fe;
+}
+
+.shot.mosaic .l2 {
+    top: 32px;
+    right: 10px;
+    left: 54%;
+}
+
+.shot.mosaic .l3 {
+    top: 52px;
+    right: 10px;
+    left: 54%;
+}
+
+.shot.atlantic .s {
+    inset: 0 auto 0 0;
+    width: 34%;
+    background: #1e3a5f;
+}
+
+.shot.atlantic .p {
+    top: 8px;
+    left: 9%;
+    width: 16px;
+    height: 16px;
+    background: #94a3b8;
+}
+
+.shot.atlantic .h {
+    top: 12px;
+    right: 10px;
+    left: 42%;
+    height: 8px;
+    background: #1e3a5f;
+}
+
+.shot.atlantic .l {
+    top: 32px;
+    right: 12px;
+    left: 42%;
+}
+
+.shot.atlantic .l2 {
+    top: 50px;
+    right: 8px;
+    left: 42%;
+}
+
+.shot.atlantic .l3 {
+    top: 68px;
+    right: 20px;
+    left: 42%;
+}
+
+.shot.portrait .p {
+    top: 10px;
+    left: 10px;
+    width: 22px;
+    height: 22px;
+}
+
+.shot.portrait .h {
+    top: 12px;
+    right: 12px;
+    left: 40px;
+    height: 8px;
+    background: #0f172a;
+}
+
+.shot.portrait .l {
+    top: 42px;
+    bottom: 10px;
+    left: 10px;
+    width: 32%;
+    height: auto;
+    background: #e2e8f0;
+}
+
+.shot.portrait .l2 {
+    top: 42px;
+    right: 10px;
+    left: 48%;
+}
+
+.shot.portrait .l3 {
+    top: 60px;
+    right: 10px;
+    left: 48%;
+}
+
+.shot.mono .s {
+    inset: 0 auto 0 0;
+    width: 36%;
+    background: #111827;
+}
+
+.shot.mono .p {
+    top: 28px;
+    left: 10%;
+    width: 18px;
+    height: 18px;
+    background: #9ca3af;
+}
+
+.shot.mono .h {
+    top: 16px;
+    right: 10px;
+    left: 44%;
+    height: 16px;
+    background: #111827;
+}
+
+.shot.mono .l {
+    top: 44px;
+    right: 14px;
+    left: 44%;
+}
+
+.shot.mono .l2 {
+    top: 62px;
+    right: 10px;
+    left: 44%;
+}
+
+.shot.academic .h {
+    top: 12px;
+    right: 18px;
+    left: 18px;
+    height: 8px;
+    background: #0f172a;
+}
+
+.shot.academic .s {
+    top: 28px;
+    right: 22%;
+    left: 22%;
+    height: 2px;
+    background: #334155;
+}
+
+.shot.academic .l,
+.shot.academic .l2,
+.shot.academic .l3 {
+    top: 42px;
+    width: 22%;
+    height: 28px;
+    background: #f1f5f9;
+}
+
+.shot.academic .l {
+    left: 8%;
+}
+
+.shot.academic .l2 {
+    left: 39%;
+}
+
+.shot.academic .l3 {
+    left: 70%;
+}
+
+.shot.sand {
+    background: #f5efe6;
+}
+
+.shot.sand .s {
+    inset: 0 auto 0 0;
+    width: 34%;
+    background: #efe4d4;
+}
+
+.shot.sand .p {
+    top: 8px;
+    left: 9%;
+    width: 16px;
+    height: 16px;
+    background: #d6bfa3;
+}
+
+.shot.sand .h {
+    top: 12px;
+    right: 10px;
+    left: 42%;
+    height: 8px;
+    background: #b45309;
+}
+
+.shot.sand .l {
+    top: 34px;
+    right: 12px;
+    left: 42%;
+}
+
+.shot.sand .l2 {
+    top: 52px;
+    right: 8px;
+    left: 42%;
+}
+
+.shot.rose .s {
+    inset: 0 auto 0 0;
+    width: 34%;
+    background: #9f1239;
+}
+
+.shot.rose .p {
+    top: 8px;
+    left: 9%;
+    width: 16px;
+    height: 16px;
+    background: #fecdd3;
+}
+
+.shot.rose .h {
+    top: 12px;
+    right: 10px;
+    left: 42%;
+    height: 8px;
+    background: #9f1239;
+}
+
+.shot.rose .l {
+    top: 32px;
+    right: 12px;
+    left: 42%;
+}
+
+.shot.rose .l2 {
+    top: 50px;
+    right: 8px;
+    left: 42%;
+}
+
+.shot.rose .l3 {
+    top: 68px;
+    right: 18px;
+    left: 42%;
+}
+
+.shot.slate .h {
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 30px;
+    background: #1e293b;
+}
+
+.shot.slate .p {
+    top: 7px;
+    left: 8px;
+    width: 16px;
+    height: 16px;
+    background: #94a3b8;
+}
+
+.shot.slate .l {
+    top: 42px;
+    bottom: 8px;
+    left: 8px;
+    width: 34%;
+    height: auto;
+    background: #e2e8f0;
+}
+
+.shot.slate .l2 {
+    top: 42px;
+    right: 8px;
+    left: 48%;
+}
+
+.shot.slate .l3 {
+    top: 60px;
+    right: 8px;
+    left: 48%;
+}
+
+.shot.forest .s {
+    inset: 0 auto 0 0;
+    width: 34%;
+    background: #3f6212;
+}
+
+.shot.forest .p {
+    top: 8px;
+    left: 9%;
+    width: 16px;
+    height: 16px;
+    background: #d9f99d;
+}
+
+.shot.forest .h {
+    top: 12px;
+    right: 10px;
+    left: 42%;
+    height: 8px;
+    background: #3f6212;
+}
+
+.shot.forest .l {
+    top: 32px;
+    right: 12px;
+    left: 42%;
+}
+
+.shot.forest .l2 {
+    top: 50px;
+    right: 8px;
+    left: 42%;
+}
+
+.shot.forest .l3 {
+    top: 68px;
+    right: 20px;
+    left: 42%;
+}
+
+.panel {
     @apply space-y-3 rounded-xl border p-5;
 }
 
@@ -314,11 +891,7 @@ const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(B
     @apply w-full rounded-lg border px-3 py-2;
 }
 
-.templates {
-    @apply flex flex-wrap gap-3 text-sm;
-}
-
-.choice {
+.photo-row {
     @apply flex items-center gap-2;
 }
 
@@ -326,8 +899,7 @@ const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(B
     @apply mt-2 text-sm font-medium;
 }
 
-.row,
-.actions {
+.row {
     @apply flex gap-2;
 }
 
@@ -337,110 +909,5 @@ const contactLine = () => [cv.email, cv.phone, cv.location, cv.website].filter(B
 
 .error {
     @apply text-sm text-red-700;
-}
-
-.preview {
-    @apply bg-white text-slate-900;
-}
-
-.preview.classic h2 {
-    @apply font-serif text-2xl;
-}
-
-.preview.compact {
-    @apply text-sm;
-}
-
-.preview.compact .item {
-    @apply mb-2;
-}
-
-.preview.executive .exec {
-    @apply mb-4 border-b-2 border-amber-700 pb-4 text-center;
-}
-
-.preview.executive .exec h2 {
-    @apply text-xl font-semibold uppercase tracking-[0.2em];
-}
-
-.preview.creative {
-    @apply border-l-8 border-violet-700;
-}
-
-.preview.creative h2 {
-    @apply text-3xl text-violet-800;
-}
-
-.time-row {
-    @apply mb-3 grid gap-3 sm:grid-cols-[7rem_1fr];
-}
-
-.when {
-    @apply text-sm text-slate-600;
-}
-
-.heading {
-    @apply mt-4 border-b pb-1 text-xs font-semibold uppercase tracking-wide;
-}
-
-.small {
-    @apply text-sm text-slate-600;
-}
-
-.body {
-    @apply whitespace-pre-wrap text-sm leading-6;
-}
-
-.strong {
-    @apply font-medium;
-}
-
-.item {
-    @apply mb-3;
-}
-
-.chips {
-    @apply flex flex-wrap gap-2;
-}
-
-.chips span {
-    @apply rounded border px-2 py-0.5 text-xs;
-}
-
-.modern-grid {
-    @apply grid gap-4 md:grid-cols-[12rem_1fr];
-}
-
-.side {
-    @apply rounded-lg bg-slate-900 p-4 text-slate-100;
-}
-
-.side .heading,
-.side .small {
-    @apply text-slate-200;
-}
-
-.rail {
-    @apply rounded-lg bg-teal-50 p-4 text-teal-950;
-}
-
-.preview.split .heading {
-    @apply border-teal-200 text-teal-800;
-}
-
-.banner {
-    @apply -mx-5 -mt-5 mb-4 bg-teal-800 px-5 py-4 text-teal-50;
-}
-
-.banner .small {
-    @apply text-teal-100;
-}
-
-.mosaic-cols {
-    @apply grid gap-4 md:grid-cols-2;
-}
-
-.preview.mosaic h2 {
-    @apply text-sky-800;
 }
 </style>
