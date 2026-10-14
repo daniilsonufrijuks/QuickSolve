@@ -568,7 +568,7 @@ test('the pdf editor page names merge split and compress in its copy', function 
     $tool = Tool::query()->where('slug', 'pdf-viewer-editor')->firstOrFail();
 
     expect($tool->description)->toContain('merge or split')
-        ->and($tool->long_description)->toContain('Compress redraws each page');
+        ->and($tool->long_description)->toContain('Click a line to type');
 
     $this->get('/tools/pdf-viewer-editor')
         ->assertOk()

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import {
+    Bold,
     ChevronLeft,
     ChevronRight,
     Download,
@@ -12,7 +13,6 @@ import {
     Layers,
     Maximize2,
     Minimize2,
-    MousePointer2,
     Pencil,
     RotateCw,
     Scissors,
@@ -29,15 +29,31 @@ import { computed, nextTick, ref } from 'vue';
 GlobalWorkerOptions.workerSrc = workerSrc;
 
 type Point = { x: number; y: number };
-type Tool = 'select' | 'hand' | 'text' | 'highlight' | 'draw' | 'image';
+type FontName = 'helvetica' | 'times' | 'courier';
+type Tool = 'edit' | 'hand' | 'highlight' | 'draw' | 'image';
 type Overlay =
-    | { kind: 'text'; id: string; page: number; x: number; y: number; text: string; size: number; color: string }
+    | {
+          kind: 'text';
+          id: string;
+          page: number;
+          x: number;
+          y: number;
+          w: number;
+          h: number;
+          text: string;
+          original: string;
+          size: number;
+          color: string;
+          font: FontName;
+          bold: boolean;
+          native: boolean;
+      }
     | { kind: 'highlight'; id: string; page: number; x: number; y: number; w: number; h: number; color: string }
     | { kind: 'ink'; id: string; page: number; points: Point[]; color: string; width: number }
     | { kind: 'image'; id: string; page: number; x: number; y: number; w: number; h: number; dataUrl: string; mime: string };
 
 const error = ref('');
-const notice = ref('The PDF stays in this browser tab. QuickSolve does not store it.');
+const notice = ref('Click a line to type. Empty clicks do not cover the page. Double-click a gap to add a line.');
 const fileName = ref('document.pdf');
 const pageCount = ref(0);
 const currentPage = ref(1);
@@ -50,12 +66,13 @@ const pageWidth = ref(595);
 const pageHeight = ref(842);
 const rendering = ref(false);
 const busy = ref('');
-const tool = ref<Tool>('select');
+const tool = ref<Tool>('edit');
 const overlays = ref<Overlay[]>([]);
 const selectedId = ref('');
-const draft = ref('Type here');
-const fontSize = ref(16);
-const inkColor = ref('#1d4ed8');
+const fontSize = ref(14);
+const fontFamily = ref<FontName>('helvetica');
+const bold = ref(false);
+const inkColor = ref('#111827');
 const highlightColor = ref('#facc15');
 const zoom = ref(110);
 const imagePayload = ref<{ dataUrl: string; mime: string; w: number; h: number } | null>(null);
@@ -73,7 +90,13 @@ const textMarks = computed(() => pageOverlays.value.filter((item): item is Extra
 const highlightMarks = computed(() => pageOverlays.value.filter((item): item is Extract<Overlay, { kind: 'highlight' }> => item.kind === 'highlight'));
 const imageMarks = computed(() => pageOverlays.value.filter((item): item is Extract<Overlay, { kind: 'image' }> => item.kind === 'image'));
 const inkMarks = computed(() => pageOverlays.value.filter((item): item is Extract<Overlay, { kind: 'ink' }> => item.kind === 'ink'));
+const selectedText = computed(() => textMarks.value.find((item) => item.id === selectedId.value) ?? null);
 const zoomLabel = computed(() => `${Math.round(zoom.value)}%`);
+const hasEdits = computed(
+    () =>
+        overlays.value.some((item) => item.kind !== 'text') ||
+        overlays.value.some((item) => item.kind === 'text' && item.text !== item.original),
+);
 
 function cloneBytes(source: Uint8Array): Uint8Array {
     const copy = new Uint8Array(source.byteLength);
@@ -111,6 +134,24 @@ function pdfFromEvent(event: MouseEvent): Point | null {
     return { x, y };
 }
 
+function cssFont(item: Extract<Overlay, { kind: 'text' }>) {
+    const family = item.font === 'times' ? 'Times New Roman, Times, serif' : item.font === 'courier' ? 'Courier New, Courier, monospace' : 'Helvetica, Arial, sans-serif';
+
+    return `${item.bold ? '700' : '400'} ${item.size * (zoom.value / 100)}px ${family}`;
+}
+
+async function standardFont(document: PDFDocument, font: FontName, isBold: boolean) {
+    if (font === 'times') {
+        return document.embedFont(isBold ? StandardFonts.TimesRomanBold : StandardFonts.TimesRoman);
+    }
+
+    if (font === 'courier') {
+        return document.embedFont(isBold ? StandardFonts.CourierBold : StandardFonts.Courier);
+    }
+
+    return document.embedFont(isBold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica);
+}
+
 async function loadPdfBytes(data: Uint8Array, name: string) {
     error.value = '';
     overlays.value = [];
@@ -146,7 +187,8 @@ async function startBlank() {
     const document = await PDFDocument.create();
     document.addPage([595.28, 841.89]);
     await loadPdfBytes(await document.save(), 'untitled.pdf');
-    notice.value = 'Blank A4 page. Use Text, Draw, or Image to edit, then download.';
+    notice.value = 'Blank A4 page. Click and type, then download.';
+    tool.value = 'edit';
 }
 
 async function reload() {
@@ -167,6 +209,7 @@ async function reload() {
     }
 
     await refreshPreview();
+    await extractPageText(currentPage.value);
     await renderThumbs();
 }
 
@@ -216,6 +259,116 @@ async function refreshPreview() {
     }
 }
 
+async function extractPageText(pageNumber: number) {
+    if (!bytes.value || overlays.value.some((item) => item.kind === 'text' && item.native && item.page === pageNumber)) {
+        return;
+    }
+
+    try {
+        const loaded = await pdfjsDoc();
+        const page = await loaded.getPage(pageNumber);
+        const content = await page.getTextContent();
+        const raw: Array<{ x: number; y: number; w: number; h: number; size: number; text: string }> = [];
+
+        for (const item of content.items) {
+            if (!('str' in item) || typeof item.str !== 'string' || item.str.replace(/\s/g, '') === '') {
+                continue;
+            }
+
+            const transform = item.transform;
+            const size = Math.hypot(transform[2], transform[3]) || Math.abs(transform[3]) || 12;
+            raw.push({
+                x: transform[4],
+                y: transform[5],
+                w: item.width || size * item.str.length * 0.48,
+                h: item.height || size,
+                size,
+                text: item.str,
+            });
+        }
+
+        raw.sort((left, right) => right.y - left.y || left.x - right.x);
+
+        const rows: Array<typeof raw> = [];
+
+        for (const item of raw) {
+            const row = rows.find((group) => Math.abs(group[0].y - item.y) < Math.max(group[0].size, item.size) * 0.42);
+
+            if (row) {
+                row.push(item);
+            } else {
+                rows.push([item]);
+            }
+        }
+
+        const blocks: Overlay[] = [];
+
+        for (const row of rows) {
+            row.sort((left, right) => left.x - right.x);
+            let chunk = [row[0]];
+
+            for (let index = 1; index < row.length; index += 1) {
+                const previous = chunk[chunk.length - 1];
+                const gap = row[index].x - (previous.x + previous.w);
+
+                if (gap > Math.max(previous.size, row[index].size) * 2.4) {
+                    blocks.push(lineToBlock(pageNumber, chunk));
+                    chunk = [row[index]];
+                } else {
+                    chunk.push(row[index]);
+                }
+            }
+
+            blocks.push(lineToBlock(pageNumber, chunk));
+        }
+
+        overlays.value = [...overlays.value, ...blocks];
+
+        if (blocks.length === 0) {
+            notice.value = 'No selectable words on this page (often a scan). Double-click a gap to type a new line.';
+        } else {
+            notice.value = 'Click a line to type. The page stays visible until you change that line.';
+        }
+    } catch {
+        notice.value = 'The words on this page could not be read. You can still type new lines on top.';
+    }
+}
+
+function lineToBlock(pageNumber: number, chunk: Array<{ x: number; y: number; w: number; h: number; size: number; text: string }>): Overlay {
+    const first = chunk[0];
+    const last = chunk[chunk.length - 1];
+    const text = chunk
+        .map((part, index) => {
+            if (index === 0) {
+                return part.text;
+            }
+
+            const previous = chunk[index - 1];
+            const gap = part.x - (previous.x + previous.w);
+
+            return (gap > previous.size * 0.16 ? ' ' : '') + part.text;
+        })
+        .join('');
+    const size = chunk.reduce((sum, part) => sum + part.size, 0) / chunk.length;
+
+    return {
+        kind: 'text',
+        id: crypto.randomUUID(),
+        page: pageNumber,
+        x: first.x,
+        y: first.y,
+        w: Math.max(last.x + last.w - first.x, size * 2),
+        h: Math.max(...chunk.map((part) => part.h), size),
+        text,
+        original: text,
+        size,
+        color: '#111827',
+        font: 'helvetica',
+        bold: false,
+        native: true,
+    };
+}
+
 async function renderThumbs() {
     if (!bytes.value) {
         thumbs.value = [];
@@ -263,6 +416,7 @@ async function goTo(page: number) {
     }
 
     await refreshPreview();
+    await extractPageText(currentPage.value);
 }
 
 async function setZoom(value: number) {
@@ -270,14 +424,18 @@ async function setZoom(value: number) {
     await refreshPreview();
 }
 
+function isLiveText(item: Extract<Overlay, { kind: 'text' }>) {
+    return item.id === selectedId.value || item.text !== item.original || (!item.native && item.text !== '');
+}
+
 function overlayStyle(item: Overlay) {
     if (item.kind === 'text') {
         return {
             left: `${(item.x / pageWidth.value) * 100}%`,
-            top: `${((pageHeight.value - item.y) / pageHeight.value) * 100}%`,
-            fontSize: `${item.size * (zoom.value / 100)}px`,
-            color: item.color,
-            width: '46%',
+            top: `${((pageHeight.value - item.y - item.h) / pageHeight.value) * 100}%`,
+            width: `${(Math.max(item.w, item.size * 1.2) / pageWidth.value) * 100}%`,
+            height: `${(Math.max(item.h, item.size) / pageHeight.value) * 100}%`,
+            font: cssFont(item),
         };
     }
 
@@ -304,6 +462,29 @@ function inkPath(item: Extract<Overlay, { kind: 'ink' }>) {
         .join(' ');
 }
 
+async function placeText(point: Point) {
+    const overlay: Overlay = {
+        kind: 'text',
+        id: crypto.randomUUID(),
+        page: currentPage.value,
+        x: point.x,
+        y: point.y,
+        w: Math.min(fontSize.value * 10, Math.max(pageWidth.value - point.x - 24, fontSize.value * 4)),
+        h: fontSize.value + 4,
+        text: '',
+        original: '',
+        size: fontSize.value,
+        color: inkColor.value,
+        font: fontFamily.value,
+        bold: bold.value,
+        native: false,
+    };
+    overlays.value = [...overlays.value, overlay];
+    selectedId.value = overlay.id;
+    await nextTick();
+    stage.value?.querySelector<HTMLTextAreaElement>(`textarea[data-id="${overlay.id}"]`)?.focus();
+}
+
 function onStageDown(event: MouseEvent) {
     if (event.button !== 0 || !bytes.value) {
         return;
@@ -315,19 +496,13 @@ function onStageDown(event: MouseEvent) {
         return;
     }
 
-    if (tool.value === 'text') {
-        const overlay: Overlay = {
-            kind: 'text',
-            id: crypto.randomUUID(),
-            page: currentPage.value,
-            x: point.x,
-            y: point.y,
-            text: draft.value.trim() === '' ? 'Type here' : draft.value.trim(),
-            size: fontSize.value,
-            color: inkColor.value,
-        };
-        overlays.value = [...overlays.value, overlay];
-        selectedId.value = overlay.id;
+    if (tool.value === 'edit') {
+        if (event.detail >= 2) {
+            void placeText(point);
+        } else {
+            selectedId.value = '';
+        }
+
         return;
     }
 
@@ -349,12 +524,7 @@ function onStageDown(event: MouseEvent) {
         return;
     }
 
-    if (tool.value === 'draw') {
-        drawing.value = [point];
-        return;
-    }
-
-    if (tool.value === 'highlight') {
+    if (tool.value === 'draw' || tool.value === 'highlight') {
         drawing.value = [point];
     }
 }
@@ -413,7 +583,7 @@ function onStageUp(event: MouseEvent) {
 }
 
 function startDrag(event: MouseEvent, item: Overlay) {
-    if (tool.value !== 'select' || item.kind === 'ink') {
+    if (item.kind === 'ink') {
         return;
     }
 
@@ -426,11 +596,63 @@ function startDrag(event: MouseEvent, item: Overlay) {
     }
 
     drag.value = { id: item.id, dx: point.x - item.x, dy: point.y - item.y };
+
+    if (item.kind === 'text') {
+        fontSize.value = Math.round(item.size);
+        fontFamily.value = item.font;
+        bold.value = item.bold;
+        inkColor.value = item.color;
+    }
+}
+
+function applyFormat() {
+    const item = selectedText.value;
+
+    if (!item) {
+        return;
+    }
+
+    item.size = fontSize.value;
+    item.font = fontFamily.value;
+    item.bold = bold.value;
+    item.color = inkColor.value;
 }
 
 function removeSelected() {
     overlays.value = overlays.value.filter((item) => item.id !== selectedId.value);
     selectedId.value = '';
+}
+
+function markText(item: Extract<Overlay, { kind: 'text' }>, value: string) {
+    item.text = value;
+}
+
+function onTextBlur(item: Extract<Overlay, { kind: 'text' }>) {
+    if (!item.native && item.text.trim() === '') {
+        overlays.value = overlays.value.filter((overlay) => overlay.id !== item.id);
+
+        if (selectedId.value === item.id) {
+            selectedId.value = '';
+        }
+    }
+}
+
+function textFieldStyle(item: Extract<Overlay, { kind: 'text' }>) {
+    if (!isLiveText(item)) {
+        return {
+            color: 'transparent',
+            caretColor: 'transparent',
+            backgroundColor: 'transparent',
+            WebkitTextFillColor: 'transparent',
+        };
+    }
+
+    return {
+        color: item.color || '#111827',
+        caretColor: item.color || '#111827',
+        backgroundColor: '#ffffff',
+        WebkitTextFillColor: item.color || '#111827',
+    };
 }
 
 async function bake(): Promise<Uint8Array> {
@@ -439,20 +661,55 @@ async function bake(): Promise<Uint8Array> {
     }
 
     const document = await PDFDocument.load(cloneBytes(bytes.value), { ignoreEncryption: true });
-    const font = await document.embedFont(StandardFonts.Helvetica);
+    const fonts = {
+        helvetica: await standardFont(document, 'helvetica', false),
+        helveticaBold: await standardFont(document, 'helvetica', true),
+        times: await standardFont(document, 'times', false),
+        timesBold: await standardFont(document, 'times', true),
+        courier: await standardFont(document, 'courier', false),
+        courierBold: await standardFont(document, 'courier', true),
+    };
 
     for (const overlay of overlays.value) {
         const page = document.getPage(overlay.page - 1);
 
-        if (overlay.kind === 'text') {
+        if (overlay.kind === 'text' && overlay.text !== overlay.original) {
+            const coverWidth = Math.max(overlay.w, overlay.size * Math.max(overlay.text.length, overlay.original.length) * 0.52, 12);
+            const coverHeight = overlay.h + overlay.size * Math.max(overlay.text.split('\n').length - 1, 0);
+
+            page.drawRectangle({
+                x: overlay.x - 1,
+                y: overlay.y - overlay.size * 0.22,
+                width: coverWidth + 8,
+                height: coverHeight + overlay.size * 0.35,
+                color: rgb(1, 1, 1),
+            });
+
+            const font =
+                overlay.font === 'times'
+                    ? overlay.bold
+                        ? fonts.timesBold
+                        : fonts.times
+                    : overlay.font === 'courier'
+                      ? overlay.bold
+                          ? fonts.courierBold
+                          : fonts.courier
+                      : overlay.bold
+                        ? fonts.helveticaBold
+                        : fonts.helvetica;
+
             overlay.text.split('\n').forEach((line, index) => {
+                if (line === '') {
+                    return;
+                }
+
                 page.drawText(line, {
                     x: overlay.x,
-                    y: overlay.y - index * (overlay.size + 4),
+                    y: overlay.y - index * (overlay.size + 3),
                     size: overlay.size,
                     font,
                     color: hexToRgb(overlay.color),
-                    maxWidth: page.getWidth() - overlay.x - 24,
+                    maxWidth: page.getWidth() - overlay.x - 16,
                 });
             });
         }
@@ -487,7 +744,15 @@ async function bake(): Promise<Uint8Array> {
     }
 
     const saved = await document.save();
-    overlays.value = [];
+
+    overlays.value = overlays.value.map((item) => {
+        if (item.kind === 'text') {
+            return { ...item, original: item.text, native: true };
+        }
+
+        return item;
+    });
+    overlays.value = overlays.value.filter((item) => item.kind === 'text');
     selectedId.value = '';
 
     return saved;
@@ -495,7 +760,8 @@ async function bake(): Promise<Uint8Array> {
 
 async function persistBake() {
     bytes.value = await bake();
-    await reload();
+    await refreshPreview();
+    await renderThumbs();
 }
 
 function downloadBytes(data: Uint8Array, suffix: string) {
@@ -510,11 +776,12 @@ async function downloadEdited() {
     busy.value = 'Preparing download…';
 
     try {
-        const data = overlays.value.length ? await bake() : cloneBytes(bytes.value as Uint8Array);
+        const data = hasEdits.value ? await bake() : cloneBytes(bytes.value as Uint8Array);
         bytes.value = data;
         downloadBytes(data, '-edited.pdf');
-        await reload();
-        notice.value = 'Downloaded. The file was never sent to QuickSolve.';
+        await refreshPreview();
+        await renderThumbs();
+        notice.value = 'Downloaded. Replaced lines are covered with new type. The file was never sent to QuickSolve.';
     } catch (caught) {
         error.value = caught instanceof Error ? caught.message : 'The PDF could not be saved.';
     } finally {
@@ -533,7 +800,7 @@ async function mergePdfs(event: Event) {
     busy.value = 'Merging…';
 
     try {
-        const document = await PDFDocument.load(overlays.value.length ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
+        const document = await PDFDocument.load(hasEdits.value ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
 
         for (const file of files) {
             const donor = await PDFDocument.load(new Uint8Array(await file.arrayBuffer()), { ignoreEncryption: true });
@@ -559,13 +826,12 @@ async function splitCurrent() {
     busy.value = 'Splitting…';
 
     try {
-        const source = await PDFDocument.load(overlays.value.length ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
+        const source = await PDFDocument.load(hasEdits.value ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
         const document = await PDFDocument.create();
         const [page] = await document.copyPages(source, [currentPage.value - 1]);
         document.addPage(page);
         downloadBytes(await document.save(), `-page-${currentPage.value}.pdf`);
         notice.value = `Downloaded page ${currentPage.value} as its own PDF.`;
-        await reload();
     } catch (caught) {
         error.value = caught instanceof Error ? caught.message : 'The page could not be split out.';
     } finally {
@@ -578,11 +844,12 @@ async function rotatePage() {
         return;
     }
 
-    const source = await PDFDocument.load(overlays.value.length ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
+    const source = await PDFDocument.load(hasEdits.value ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
     const page = source.getPage(currentPage.value - 1);
     const current = page.getRotation().angle;
     page.setRotation(degrees((current + 90) % 360));
     bytes.value = await source.save();
+    overlays.value = overlays.value.filter((item) => item.page !== currentPage.value);
     await reload();
 }
 
@@ -592,12 +859,15 @@ async function deletePage() {
         return;
     }
 
-    const source = await PDFDocument.load(overlays.value.length ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
+    const source = await PDFDocument.load(hasEdits.value ? await bake() : cloneBytes(bytes.value), { ignoreEncryption: true });
     const keep = source.getPageIndices().filter((index) => index !== currentPage.value - 1);
     const document = await PDFDocument.create();
     const copied = await document.copyPages(source, keep);
     copied.forEach((page) => document.addPage(page));
     bytes.value = await document.save();
+    overlays.value = overlays.value
+        .filter((item) => item.page !== currentPage.value)
+        .map((item) => (item.page > currentPage.value ? { ...item, page: item.page - 1 } : item));
     currentPage.value = Math.min(currentPage.value, keep.length);
     await reload();
 }
@@ -610,7 +880,10 @@ async function compress() {
     busy.value = 'Compressing…';
 
     try {
-        await persistBake();
+        if (hasEdits.value) {
+            await persistBake();
+        }
+
         const document = await PDFDocument.create();
 
         for (let index = 1; index <= pageCount.value; index += 1) {
@@ -622,6 +895,7 @@ async function compress() {
 
         const saved = await document.save();
         bytes.value = saved;
+        overlays.value = [];
         downloadBytes(saved, '-compressed.pdf');
         notice.value = 'Compressed by redrawing each page as a JPEG. Text is no longer selectable in this copy.';
         await reload();
@@ -749,18 +1023,25 @@ function onDrop(event: DragEvent) {
             </nav>
         </header>
 
-        <div class="toolbar" role="toolbar" aria-label="Edit tools">
-            <button type="button" class="tool" :class="{ on: tool === 'select' }" title="Select" @click="tool = 'select'"><MousePointer2 /></button>
+        <div class="toolbar" role="toolbar" aria-label="Document tools">
+            <button type="button" class="tool" :class="{ on: tool === 'edit' }" title="Edit text" @click="tool = 'edit'"><Type /></button>
             <button type="button" class="tool" :class="{ on: tool === 'hand' }" title="Pan" @click="tool = 'hand'"><Hand /></button>
-            <button type="button" class="tool" :class="{ on: tool === 'text' }" title="Text" @click="tool = 'text'"><Type /></button>
             <button type="button" class="tool" :class="{ on: tool === 'highlight' }" title="Highlight" @click="tool = 'highlight'"><Highlighter /></button>
             <button type="button" class="tool" :class="{ on: tool === 'draw' }" title="Draw" @click="tool = 'draw'"><Pencil /></button>
             <button type="button" class="tool" :class="{ on: tool === 'image' }" title="Image" @click="imageInput?.click()"><ImagePlus /></button>
             <span class="rule" />
-            <label v-if="tool === 'text'" class="mini">Size <input v-model.number="fontSize" type="number" min="8" max="72" /></label>
-            <label v-if="tool === 'text' || tool === 'draw'" class="mini">Color <input v-model="inkColor" type="color" /></label>
-            <label v-if="tool === 'highlight'" class="mini">Color <input v-model="highlightColor" type="color" /></label>
-            <input v-if="tool === 'text'" v-model="draft" class="draft" maxlength="400" placeholder="Text to place" />
+            <label class="mini">
+                Font
+                <select v-model="fontFamily" @change="applyFormat">
+                    <option value="helvetica">Helvetica</option>
+                    <option value="times">Times</option>
+                    <option value="courier">Courier</option>
+                </select>
+            </label>
+            <label class="mini">Size <input v-model.number="fontSize" type="number" min="8" max="72" @change="applyFormat" /></label>
+            <button type="button" class="tool" :class="{ on: bold }" title="Bold" @click="bold = !bold; applyFormat()"><Bold /></button>
+            <label class="mini">Color <input v-model="inkColor" type="color" @change="applyFormat" /></label>
+            <label v-if="tool === 'highlight'" class="mini">Highlight <input v-model="highlightColor" type="color" /></label>
             <span class="spacer" />
             <button type="button" class="tool" :disabled="!bytes" title="Rotate page" @click="rotatePage"><RotateCw /></button>
             <button type="button" class="tool" :disabled="!bytes || pageCount <= 1" title="Delete page" @click="deletePage"><Trash2 /></button>
@@ -773,7 +1054,7 @@ function onDrop(event: DragEvent) {
 
         <div v-if="!bytes" class="drop" @dragover.prevent @drop="onDrop">
             <FilePlus class="big" />
-            <p>Drop a PDF here, open a file, or start a blank page.</p>
+            <p>Drop a PDF here, open a file, or start a blank page you can type on.</p>
             <div class="row">
                 <Button type="button" @click="fileInput?.click()">Open PDF</Button>
                 <Button type="button" variant="outline" @click="startBlank">Blank document</Button>
@@ -840,15 +1121,26 @@ function onDrop(event: DragEvent) {
                         alt=""
                         @mousedown="startDrag($event, item)"
                     />
-                    <textarea
+                    <div
                         v-for="item in textMarks"
                         :key="item.id"
-                        v-model="item.text"
-                        class="mark copy"
-                        :class="{ selected: item.id === selectedId }"
+                        class="mark copy-wrap"
+                        :class="{ selected: item.id === selectedId, live: isLiveText(item) }"
                         :style="overlayStyle(item)"
-                        @mousedown="startDrag($event, item)"
-                    />
+                    >
+                        <button v-if="item.id === selectedId" type="button" class="grip" title="Move" @mousedown="startDrag($event, item)" />
+                        <textarea
+                            :data-id="item.id"
+                            class="copy"
+                            :value="item.text"
+                            spellcheck="false"
+                            :style="textFieldStyle(item)"
+                            @mousedown.stop="selectedId = item.id"
+                            @input="markText(item, ($event.target as HTMLTextAreaElement).value)"
+                            @focus="selectedId = item.id"
+                            @blur="onTextBlur(item)"
+                        />
+                    </div>
                 </div>
                 <p v-else-if="rendering" class="meta">Rendering page {{ currentPage }}…</p>
             </section>
@@ -911,16 +1203,17 @@ function onDrop(event: DragEvent) {
     @apply flex items-center gap-1 text-xs text-slate-500;
 }
 
+.mini input[type='number'],
+.mini select {
+    @apply rounded border border-slate-300 bg-white px-1 py-0.5 text-slate-800 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100;
+}
+
 .mini input[type='number'] {
-    @apply w-14 rounded border px-1 py-0.5;
+    @apply w-14;
 }
 
 .mini input[type='color'] {
     @apply h-7 w-8 cursor-pointer rounded border;
-}
-
-.draft {
-    @apply w-48 rounded border px-2 py-1 text-sm;
 }
 
 .spacer {
@@ -986,16 +1279,20 @@ function onDrop(event: DragEvent) {
 }
 
 .stage {
-    @apply relative mx-auto w-fit bg-white shadow-xl;
+    @apply relative mx-auto w-fit bg-white text-slate-900 shadow-xl;
+    color-scheme: light;
 }
 
-.stage.text,
-.stage.image {
-    @apply cursor-crosshair;
+.stage.edit,
+.stage.image,
+.stage.draw,
+.stage.highlight {
+    @apply cursor-text;
 }
 
 .stage.draw,
-.stage.highlight {
+.stage.highlight,
+.stage.image {
     @apply cursor-crosshair;
 }
 
@@ -1015,8 +1312,21 @@ function onDrop(event: DragEvent) {
     @apply opacity-50;
 }
 
+.copy-wrap {
+    @apply z-10 overflow-hidden bg-transparent;
+}
+
+.copy-wrap.live {
+    @apply z-20;
+}
+
+.grip {
+    @apply absolute -left-3 top-0 h-full w-2 cursor-grab rounded-sm bg-blue-500/70;
+}
+
 .copy {
-    @apply -translate-y-1/2 resize-none border border-blue-400 bg-white/90 px-1 py-0.5 leading-snug;
+    @apply h-full w-full resize-none overflow-hidden border-0 bg-transparent px-0.5 leading-tight outline-none;
+    color-scheme: light;
 }
 
 .picture {
