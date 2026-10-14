@@ -59,7 +59,7 @@ defineProps<{
 
 <template>
     <MarketingLayout>
-        <article class="s1w0rxx4">
+        <article :class="tool.slug === 'pdf-viewer-editor' ? 'wide' : 's1w0rxx4'">
             <nav class="s1bkxu62" aria-label="Breadcrumb">
                 <Link href="/">Home</Link>
                 <span aria-hidden="true"> / </span>
@@ -140,6 +140,10 @@ defineProps<{
 <style scoped>
 .s1w0rxx4 {
     @apply mx-auto max-w-6xl px-4 py-12;
+}
+
+.wide {
+    @apply mx-auto max-w-[90rem] px-3 py-6 sm:px-4;
 }
 
 .s1bkxu62 {

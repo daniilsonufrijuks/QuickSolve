@@ -26,8 +26,59 @@ class PlanPriceResolver
 
     public function store(string $plan, string $priceId): void
     {
+        $this->remember($plan, $priceId);
         Setting::put("stripe.{$plan}_price_id", $priceId);
         config(["quicksolve.plans.{$plan}.stripe_price_id" => $priceId]);
+    }
+
+    public function remember(string $plan, string $priceId): void
+    {
+        if (! in_array($plan, ['pro', 'business'], true) || $priceId === '') {
+            return;
+        }
+
+        $ids = $this->knownIds($plan);
+
+        if (in_array($priceId, $ids, true)) {
+            return;
+        }
+
+        $ids[] = $priceId;
+        Setting::put("stripe.{$plan}_price_ids", json_encode(array_values($ids)));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function knownIds(string $plan): array
+    {
+        if (! in_array($plan, ['pro', 'business'], true)) {
+            return [];
+        }
+
+        $ids = [];
+
+        foreach ([
+            $this->idFor($plan),
+            config("quicksolve.plans.{$plan}.stripe_price_id"),
+            Setting::get("stripe.{$plan}_price_id"),
+        ] as $id) {
+            if (is_string($id) && $id !== '') {
+                $ids[] = $id;
+            }
+        }
+
+        $stored = json_decode((string) Setting::get("stripe.{$plan}_price_ids", '[]'), true);
+
+        if (is_array($stored)) {
+            foreach ($stored as $id) {
+                if (is_string($id) && $id !== '') {
+                    $ids[] = $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     public function ensure(string $plan): string

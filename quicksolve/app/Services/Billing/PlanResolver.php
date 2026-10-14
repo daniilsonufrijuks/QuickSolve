@@ -18,6 +18,8 @@ class PlanResolver
         'home-chat',
     ];
 
+    public function __construct(private readonly PlanPriceResolver $prices) {}
+
     public function key(?User $user): string
     {
         $subscription = $this->currentSubscription($user);
@@ -44,13 +46,9 @@ class PlanResolver
             }
 
             $plan = $this->keyForPrice($this->priceId($subscription));
-            $rank = match ($plan) {
-                'business' => 2,
-                'pro' => 1,
-                default => 0,
-            };
+            $rank = $this->rank($plan);
 
-            if ($rank > $bestRank) {
+            if ($rank > $bestRank || ($rank === $bestRank && $best !== null && $subscription->id > $best->id)) {
                 $best = $subscription;
                 $bestRank = $rank;
             }
@@ -61,12 +59,12 @@ class PlanResolver
 
     public function keyForPrice(string $priceId): ?string
     {
-        $prices = app(PlanPriceResolver::class);
+        if ($priceId === '') {
+            return null;
+        }
 
-        foreach (['pro', 'business'] as $plan) {
-            $configured = $prices->idFor($plan);
-
-            if ($priceId !== '' && $configured !== null && $priceId === $configured) {
+        foreach (['business', 'pro'] as $plan) {
+            if (in_array($priceId, $this->prices->knownIds($plan), true)) {
                 return $plan;
             }
         }
@@ -232,6 +230,20 @@ class PlanResolver
     public function visitorHash(Request $request): string
     {
         return hash('sha256', ($request->ip() ?: '0.0.0.0').'|'.(string) $request->userAgent().'|'.config('app.key'));
+    }
+
+    public function rank(?string $plan): int
+    {
+        return match ($plan) {
+            'business' => 2,
+            'pro' => 1,
+            default => 0,
+        };
+    }
+
+    public function priceIdFor(Subscription $subscription): string
+    {
+        return $this->priceId($subscription);
     }
 
     private function priceId(Subscription $subscription): string

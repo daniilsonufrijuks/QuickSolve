@@ -43,6 +43,7 @@ class CheckoutService
                 'metadata' => [
                     'plan' => $plan,
                     'user_id' => (string) $user->id,
+                    'replaces_subscription' => $this->plans->currentSubscription($user)?->stripe_id,
                 ],
             ])->asStripeCheckoutSession()->url;
         } catch (BillingNotConfiguredException $exception) {

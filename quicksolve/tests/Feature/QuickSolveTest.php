@@ -248,6 +248,78 @@ test('a failed provider does not return demo copy', function () {
     expect(UsageEvent::query()->count())->toBe(0);
 });
 
+test('the dashboard asks stripe when a signed-in account still looks free', function () {
+    $user = User::factory()->create(['stripe_id' => null]);
+
+    $this->mock(SubscriptionSyncer::class, function ($mock) use ($user) {
+        $mock->shouldReceive('refreshPaidAccess')
+            ->once()
+            ->withArgs(fn ($passed) => $passed->is($user));
+    });
+
+    $this->actingAs($user)
+        ->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('plan.key', 'free'));
+});
+
+test('login asks stripe when the local plan is still free', function () {
+    $user = User::factory()->create();
+
+    $this->mock(SubscriptionSyncer::class, function ($mock) use ($user) {
+        $mock->shouldReceive('refreshPaidAccess')
+            ->once()
+            ->withArgs(fn ($passed) => $passed->is($user));
+    });
+
+    $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ])->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('a replaced catalog price still counts as the paid plan', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => null]);
+
+    $prices = app(PlanPriceResolver::class);
+    $prices->store('pro', 'price_old_pro');
+    $prices->store('pro', 'price_new_pro');
+
+    $user = User::factory()->create();
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_old_pro',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_old_pro',
+        'quantity' => 1,
+    ]);
+
+    expect(app(PlanResolver::class)->key($user->fresh()))->toBe('pro')
+        ->and(app(PlanResolver::class)->keyForPrice('price_new_pro'))->toBe('pro')
+        ->and(app(PlanPriceResolver::class)->idFor('pro'))->toBe('price_new_pro');
+});
+
+test('a subscription webhook can find the account from checkout metadata', function () {
+    config(['cashier.webhook.secret' => 'whsec_test']);
+    $user = User::factory()->create();
+
+    $this->mock(SubscriptionSyncer::class, function ($mock) use ($user) {
+        $mock->shouldReceive('syncUser')
+            ->once()
+            ->withArgs(fn ($passed, $session) => $passed->is($user) && $session === 'cs_sub');
+    });
+
+    stripeWebhook($this, [
+        'type' => 'checkout.session.completed',
+        'data' => ['object' => [
+            'id' => 'cs_sub',
+            'mode' => 'subscription',
+            'customer' => 'cus_mike',
+            'metadata' => ['user_id' => (string) $user->id],
+        ]],
+    ])->assertOk();
+});
+
 test('a checkout return does not change the plan without a stripe confirmation', function () {
     $user = User::factory()->create();
 
@@ -379,6 +451,62 @@ test('an older active subscription still unlocks pro when a newer checkout is in
             ->where('trial.window', 'subscription'));
 });
 
+test('a pro account must pay through stripe checkout to start business', function () {
+    config([
+        'cashier.secret' => 'sk_test_fake',
+        'quicksolve.plans.pro.stripe_price_id' => 'price_pro',
+        'quicksolve.plans.business.stripe_price_id' => 'price_biz',
+    ]);
+
+    $user = User::factory()->create(['stripe_id' => 'cus_upgrade']);
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_pro_to_keep',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/billing/checkout', ['plan' => 'business'])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'Checkout could not be started. Confirm Stripe test mode is configured and try again from Admin → Billing.');
+
+    expect($user->fresh()->subscriptions)->toHaveCount(1)
+        ->and($user->subscriptions()->first()->stripe_price)->toBe('price_pro')
+        ->and(app(PlanResolver::class)->key($user->fresh()))->toBe('pro');
+});
+
+test('an overlapping pro subscription is cancelled when business is already active', function () {
+    config([
+        'cashier.secret' => 'sk_test_fake',
+        'quicksolve.plans.pro.stripe_price_id' => 'price_pro',
+        'quicksolve.plans.business.stripe_price_id' => 'price_biz',
+    ]);
+
+    $user = User::factory()->create(['stripe_id' => 'cus_both']);
+    $pro = $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_leftover_pro',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+    $user->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_business_keep',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_biz',
+        'quantity' => 1,
+    ]);
+
+    app(SubscriptionSyncer::class)->reconcileOverlappingPlans($user->fresh());
+
+    expect($pro->fresh()->stripe_status)->toBe('canceled')
+        ->and($pro->fresh()->ends_at)->not->toBeNull()
+        ->and(app(PlanResolver::class)->key($user->fresh()))->toBe('business');
+});
+
 test('an active pro account cannot start a second pro checkout', function () {
     config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
     $user = User::factory()->create();
@@ -432,6 +560,21 @@ test('pdf and image tools stay locked after trial uses until a verified plan is 
         ->get('/tools/pdf-viewer-editor')
         ->assertOk()
         ->assertInertia(fn ($page) => $page->where('locked', false));
+});
+
+test('the pdf editor page names merge split and compress in its copy', function () {
+    $this->seed();
+
+    $tool = Tool::query()->where('slug', 'pdf-viewer-editor')->firstOrFail();
+
+    expect($tool->description)->toContain('merge or split')
+        ->and($tool->long_description)->toContain('Compress redraws each page');
+
+    $this->get('/tools/pdf-viewer-editor')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('tool.slug', 'pdf-viewer-editor')
+            ->where('tool.description', $tool->description));
 });
 
 test('the new catalog tools and templates are published', function () {

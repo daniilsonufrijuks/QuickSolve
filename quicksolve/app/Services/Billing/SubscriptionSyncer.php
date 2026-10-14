@@ -6,12 +6,63 @@ use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Laravel\Cashier\Cashier;
+use Laravel\Cashier\Subscription;
 use Stripe\Checkout\Session;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Subscription as StripeSubscription;
 
 class SubscriptionSyncer
 {
+    public function __construct(
+        private readonly PlanPriceResolver $prices,
+        private readonly PlanResolver $plans,
+    ) {}
+
+    public function refreshPaidAccess(User $user, PlanResolver $plans): void
+    {
+        $this->syncIfLocallyFree($user, $plans);
+        $this->reconcileOverlappingPlans($user);
+    }
+
+    public function syncIfLocallyFree(User $user, PlanResolver $plans): void
+    {
+        if ($plans->key($user) !== 'free') {
+            return;
+        }
+
+        $this->syncUser($user);
+        $user->refresh();
+        $user->unsetRelation('subscriptions');
+    }
+
+    public function reconcileOverlappingPlans(User $user): void
+    {
+        $user->unsetRelation('subscriptions');
+        $keep = $this->plans->currentSubscription($user);
+
+        if (! $keep) {
+            return;
+        }
+
+        foreach ($user->subscriptions as $subscription) {
+            if (! $subscription instanceof Subscription || $subscription->is($keep)) {
+                continue;
+            }
+
+            if (in_array($subscription->stripe_status, ['canceled', 'incomplete_expired'], true)) {
+                continue;
+            }
+
+            $plan = $this->plans->keyForPrice($this->plans->priceIdFor($subscription));
+
+            if (! in_array($plan, ['pro', 'business'], true)) {
+                continue;
+            }
+
+            $this->stopSubscription($subscription);
+        }
+    }
+
     public function syncUser(User $user, ?string $checkoutSessionId = null): void
     {
         $secret = config('cashier.secret');
@@ -23,11 +74,11 @@ class SubscriptionSyncer
         try {
             if (is_string($checkoutSessionId) && $checkoutSessionId !== '') {
                 $this->syncFromCheckoutSession($user, $checkoutSessionId);
-
-                return;
+            } else {
+                $this->syncFromCustomer($user);
             }
 
-            $this->syncFromCustomer($user);
+            $this->reconcileOverlappingPlans($user);
         } catch (ApiErrorException $exception) {
             Log::warning('Stripe subscription sync failed.', [
                 'user_id' => $user->id,
@@ -41,6 +92,24 @@ class SubscriptionSyncer
         $user = User::query()->where('stripe_id', $customerId)->first();
 
         if (! $user) {
+            try {
+                $customer = Cashier::stripe()->customers->retrieve($customerId);
+                $email = is_string($customer->email ?? null) ? $customer->email : null;
+                $user = is_string($email) && $email !== ''
+                    ? User::query()->where('email', $email)->first()
+                    : null;
+
+                if ($user && ! $user->stripe_id) {
+                    $user->forceFill(['stripe_id' => $customerId])->save();
+                }
+            } catch (ApiErrorException $exception) {
+                Log::warning('Stripe customer lookup failed during subscription sync.', [
+                    'exception' => $exception::class,
+                ]);
+            }
+        }
+
+        if (! $user) {
             return;
         }
 
@@ -50,36 +119,31 @@ class SubscriptionSyncer
     public function syncKnownPlanPrices(): int
     {
         $imported = 0;
-        $prices = app(PlanPriceResolver::class);
 
         foreach (['pro', 'business'] as $plan) {
-            $priceId = $prices->idFor($plan);
+            foreach ($this->prices->knownIds($plan) as $priceId) {
+                $subscriptions = Cashier::stripe()->subscriptions->all([
+                    'price' => $priceId,
+                    'status' => 'all',
+                    'limit' => 100,
+                ]);
 
-            if (! is_string($priceId) || $priceId === '') {
-                continue;
-            }
+                foreach ($subscriptions->data as $subscription) {
+                    $customerId = is_string($subscription->customer) ? $subscription->customer : $subscription->customer->id;
+                    $customer = Cashier::stripe()->customers->retrieve($customerId);
+                    $user = User::query()->where('email', $customer->email)->first();
 
-            $subscriptions = Cashier::stripe()->subscriptions->all([
-                'price' => $priceId,
-                'status' => 'all',
-                'limit' => 100,
-            ]);
+                    if (! $user) {
+                        continue;
+                    }
 
-            foreach ($subscriptions->data as $subscription) {
-                $customerId = is_string($subscription->customer) ? $subscription->customer : $subscription->customer->id;
-                $customer = Cashier::stripe()->customers->retrieve($customerId);
-                $user = User::query()->where('email', $customer->email)->first();
+                    if (! $user->stripe_id) {
+                        $user->forceFill(['stripe_id' => $customerId])->save();
+                    }
 
-                if (! $user) {
-                    continue;
+                    $this->import($user, $subscription);
+                    $imported++;
                 }
-
-                if (! $user->stripe_id) {
-                    $user->forceFill(['stripe_id' => $customerId])->save();
-                }
-
-                $this->import($user, $subscription);
-                $imported++;
             }
         }
 
@@ -138,14 +202,32 @@ class SubscriptionSyncer
     {
         $customers = Cashier::stripe()->customers->all([
             'email' => $user->email,
-            'limit' => 5,
+            'limit' => 10,
         ]);
 
-        if (count($customers->data) !== 1) {
+        if (count($customers->data) === 0) {
             return;
         }
 
-        $user->forceFill(['stripe_id' => $customers->data[0]->id])->save();
+        if (count($customers->data) === 1) {
+            $user->forceFill(['stripe_id' => $customers->data[0]->id])->save();
+
+            return;
+        }
+
+        foreach ($customers->data as $customer) {
+            $subscriptions = Cashier::stripe()->subscriptions->all([
+                'customer' => $customer->id,
+                'status' => 'active',
+                'limit' => 1,
+            ]);
+
+            if (count($subscriptions->data) > 0) {
+                $user->forceFill(['stripe_id' => $customer->id])->save();
+
+                return;
+            }
+        }
     }
 
     public function import(User $user, StripeSubscription $stripeSubscription): void
@@ -169,6 +251,13 @@ class SubscriptionSyncer
 
         $firstItem = $items[0];
         $singlePrice = count($items) === 1;
+        $planMeta = is_object($firstItem->price ?? null)
+            ? ($firstItem->price->metadata['quicksolve_plan'] ?? null)
+            : null;
+
+        if (is_string($planMeta) && isset($firstItem->price->id)) {
+            $this->prices->remember($planMeta, (string) $firstItem->price->id);
+        }
         $trialEndsAt = $stripeSubscription->trial_end
             ? Carbon::createFromTimestamp($stripeSubscription->trial_end)
             : null;
@@ -206,6 +295,23 @@ class SubscriptionSyncer
                     'quantity' => $item->quantity ?? null,
                 ],
             );
+        }
+    }
+
+    private function stopSubscription(Subscription $subscription): void
+    {
+        try {
+            $subscription->cancelNow();
+        } catch (\Throwable $exception) {
+            Log::warning('Could not cancel an overlapping Stripe subscription.', [
+                'subscription_id' => $subscription->stripe_id,
+                'exception' => $exception::class,
+            ]);
+
+            $subscription->forceFill([
+                'stripe_status' => 'canceled',
+                'ends_at' => now(),
+            ])->save();
         }
     }
 

@@ -2,17 +2,13 @@
 
 namespace App\Providers;
 
-use App\Listeners\FulfillTemplatePurchase;
-use App\Listeners\SyncStripeSubscription;
 use App\Models\Setting;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Cashier\Events\WebhookReceived;
 use Laravel\Cashier\Http\Middleware\VerifyWebhookSignature;
 
 class AppServiceProvider extends ServiceProvider
@@ -39,9 +35,6 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('pdf', function (Request $request) {
             return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
         });
-
-        Event::listen(WebhookReceived::class, FulfillTemplatePurchase::class);
-        Event::listen(WebhookReceived::class, SyncStripeSubscription::class);
 
         $this->hydrateStripePriceIds();
 

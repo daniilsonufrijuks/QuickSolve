@@ -23,11 +23,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->stripe_id && $plans->key($user) === 'free') {
-            $syncer->syncUser($user);
-            $user->refresh();
-            $user->unsetRelation('subscriptions');
-        }
+        $syncer->refreshPaidAccess($user, $plans);
 
         if (Purchase::query()->where('user_id', $user->id)->where('status', PurchaseStatus::Pending)->exists()) {
             $purchasesSyncer->syncUser($user);

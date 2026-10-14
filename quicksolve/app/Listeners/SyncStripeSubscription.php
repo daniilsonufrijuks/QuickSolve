@@ -27,9 +27,9 @@ class SyncStripeSubscription
                 return;
             }
 
-            $reference = $object['client_reference_id'] ?? null;
+            $user = $this->resolveCheckoutUser($object);
 
-            if (is_numeric($reference) && ($user = User::query()->find($reference))) {
+            if ($user) {
                 $this->syncer->syncUser($user, is_string($object['id'] ?? null) ? $object['id'] : null);
 
                 return;
@@ -39,5 +39,25 @@ class SyncStripeSubscription
         if (is_string($customerId) && $customerId !== '') {
             $this->syncer->syncFromCustomerId($customerId);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $object
+     */
+    private function resolveCheckoutUser(array $object): ?User
+    {
+        $reference = $object['client_reference_id'] ?? ($object['metadata']['user_id'] ?? null);
+
+        if (is_numeric($reference) && ($user = User::query()->find($reference))) {
+            return $user;
+        }
+
+        $email = $object['customer_details']['email'] ?? $object['customer_email'] ?? null;
+
+        if (is_string($email) && $email !== '') {
+            return User::query()->where('email', $email)->first();
+        }
+
+        return null;
     }
 }

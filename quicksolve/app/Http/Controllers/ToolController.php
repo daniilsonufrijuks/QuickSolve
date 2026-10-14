@@ -49,9 +49,8 @@ class ToolController extends Controller
         $tool = Tool::query()->published()->with('category')->where('slug', $slug)->firstOrFail();
         $user = $request->user();
 
-        if ($user?->stripe_id && $plans->key($user) === 'free') {
-            $syncer->syncUser($user);
-            $user->unsetRelation('subscriptions');
+        if ($user) {
+            $syncer->refreshPaidAccess($user, $plans);
         }
 
         $usage->record('tool_opened', $tool->slug, $request->user(), $request);
