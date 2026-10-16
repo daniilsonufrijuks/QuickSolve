@@ -444,7 +444,7 @@ async function sendChat() {
             <Button type="button" :variant="panel === 'json' ? 'default' : 'outline'" @click="panel = 'json'">JSON Resume</Button>
             <Button type="button" :variant="panel === 'chat' ? 'default' : 'outline'" @click="panel = 'chat'">DeepSeek chat</Button>
         </div>
-        <fieldset class="gallery-wrap">
+        <fieldset v-if="panel !== 'json'" class="gallery-wrap">
             <legend class="label">Template</legend>
             <div class="gallery">
                 <button
