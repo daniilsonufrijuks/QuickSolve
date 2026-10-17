@@ -105,6 +105,90 @@ const isSidebar = computed(() => theme.value.layout === 'sidebar_left' || theme.
                 </div>
             </div>
         </div>
+        <div v-else-if="theme.layout === 'corner_frame'" class="frame-pad">
+            <span class="corner tl" />
+            <span class="corner tr" />
+            <span class="corner bl" />
+            <header class="frame-head">
+                <div>
+                    <h2>{{ cv.full_name }}</h2>
+                    <p class="headline">{{ cv.headline }}</p>
+                    <p v-for="line in contactLines" :key="line" class="small contact-line">{{ line }}</p>
+                </div>
+                <CvAvatar v-if="showPhoto" :src="cv.photo" :initials="initials" size="xl" :shape="photoShape" />
+            </header>
+            <p class="body intro">{{ cv.summary }}</p>
+            <p class="heading">Professional experience</p>
+            <article v-for="(job, index) in cv.experience" :key="'f-job-' + index" class="time-row">
+                <p class="when">{{ job.dates }}</p>
+                <div>
+                    <p class="strong">{{ job.company }}{{ job.company && job.role ? ', ' : '' }}{{ job.role }}</p>
+                    <p class="body">{{ job.details }}</p>
+                </div>
+            </article>
+            <p class="heading">Education</p>
+            <article v-for="(item, index) in cv.education" :key="'f-ed-' + index" class="time-row">
+                <p class="when">{{ item.dates }}</p>
+                <div>
+                    <p class="strong">{{ item.credential }}</p>
+                    <p class="small">{{ item.school }}</p>
+                </div>
+            </article>
+            <p class="heading">Skills</p>
+            <p class="small">{{ skillList.join(' · ') }}</p>
+        </div>
+        <div v-else-if="theme.layout === 'split_panel'" class="panel-split">
+            <aside class="panel-left">
+                <h2 class="display-name">{{ cv.full_name }}</h2>
+                <p class="headline">{{ cv.headline }}</p>
+                <CvAvatar v-if="showPhoto" :src="cv.photo" :initials="initials" size="xl" :shape="photoShape" />
+                <p v-for="line in contactLines" :key="line" class="small">{{ line }}</p>
+                <p class="heading">Skills</p>
+                <p v-for="skill in skillList" :key="skill" class="skill-track">
+                    <span>{{ skill }}</span>
+                    <span class="track" />
+                </p>
+            </aside>
+            <div class="panel-right">
+                <p class="body intro">{{ cv.summary }}</p>
+                <p class="heading">Professional experience</p>
+                <article v-for="(job, index) in cv.experience" :key="'v-job-' + index" class="item">
+                    <p class="strong">{{ job.company }}{{ job.company && job.role ? ', ' : '' }}{{ job.role }}</p>
+                    <p class="small">{{ job.dates }}</p>
+                    <p class="body">{{ job.details }}</p>
+                </article>
+                <p class="heading">Education</p>
+                <article v-for="(item, index) in cv.education" :key="'v-ed-' + index" class="item">
+                    <p class="strong">{{ item.credential }}</p>
+                    <p class="small">{{ item.school }} {{ item.dates }}</p>
+                </article>
+            </div>
+        </div>
+        <div v-else-if="theme.layout === 'centered_portrait'" class="harbor">
+            <CvAvatar v-if="showPhoto" :src="cv.photo" :initials="initials" size="xl" :shape="photoShape" />
+            <h2>{{ cv.full_name }}</h2>
+            <p class="headline">{{ cv.headline }}</p>
+            <p class="small">{{ contactLine }}</p>
+            <p class="body intro">{{ cv.summary }}</p>
+            <p class="heading">Professional experience</p>
+            <article v-for="(job, index) in cv.experience" :key="'h-job-' + index" class="time-row">
+                <p class="when">{{ job.dates }}</p>
+                <div>
+                    <p class="strong">{{ job.role }}{{ job.company ? ', ' + job.company : '' }}</p>
+                    <p class="body">{{ job.details }}</p>
+                </div>
+            </article>
+            <p class="heading">Education</p>
+            <article v-for="(item, index) in cv.education" :key="'h-ed-' + index" class="time-row">
+                <p class="when">{{ item.dates }}</p>
+                <div>
+                    <p class="strong">{{ item.credential }}</p>
+                    <p class="small">{{ item.school }}</p>
+                </div>
+            </article>
+            <p class="heading">Skills</p>
+            <p class="chips filled"><span v-for="skill in skillList" :key="skill">{{ skill }}</span></p>
+        </div>
         <div v-else-if="theme.layout === 'photo_top'" class="pad">
             <header class="portrait">
                 <CvAvatar v-if="showPhoto" :src="cv.photo" :initials="initials" size="lg" :shape="photoShape" />
@@ -293,5 +377,150 @@ const isSidebar = computed(() => theme.value.layout === 'sidebar_left' || theme.
 .left .rule,
 .sheet:not(.center) .rule {
     @apply ml-0;
+}
+
+.frame-pad {
+    @apply relative space-y-3 px-6 py-8;
+}
+
+.corner {
+    position: absolute;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.corner.tl {
+    top: 0;
+    left: 0;
+    border-top: 4.5rem solid var(--cv-accent);
+    border-right: 5.5rem solid transparent;
+}
+
+.corner.tr {
+    top: 0;
+    right: 0;
+    border-top: 4.5rem solid var(--cv-accent);
+    border-left: 5.5rem solid transparent;
+}
+
+.corner.bl {
+    bottom: 0;
+    left: 0;
+    border-bottom: 6rem solid var(--cv-sidebar);
+    border-right: 7rem solid transparent;
+}
+
+.frame-head {
+    @apply flex items-start justify-between gap-4;
+}
+
+.headline {
+    color: var(--cv-muted);
+    @apply mb-2 text-lg italic;
+}
+
+.intro {
+    @apply mt-2;
+}
+
+.time-row {
+    @apply mb-3 grid gap-3 sm:grid-cols-[8.5rem_1fr];
+}
+
+.when {
+    color: var(--cv-muted);
+    @apply text-xs;
+}
+
+.corner_frame .heading,
+.harbor .heading {
+    @apply mt-5 flex items-center gap-2 border-b-0;
+}
+
+.corner_frame .heading::before,
+.harbor .heading::before {
+    content: '';
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    background: var(--cv-accent);
+}
+
+.harbor .heading {
+    border-bottom: 1px solid var(--cv-accent);
+    padding-bottom: 0.25rem;
+}
+
+.harbor .heading::before {
+    display: none;
+}
+
+.panel-split {
+    @apply grid min-h-[36rem] md:grid-cols-[18rem_1fr];
+}
+
+.panel-left {
+    @apply space-y-3 p-5;
+}
+
+.panel-right {
+    color: var(--cv-sidebar-ink);
+    background: var(--cv-sidebar);
+    @apply space-y-3 p-5;
+}
+
+.panel-right .heading,
+.panel-right .small,
+.panel-right .strong,
+.panel-right .body {
+    color: var(--cv-sidebar-ink);
+    border-color: color-mix(in srgb, var(--cv-sidebar-ink) 35%, transparent);
+}
+
+.display-name {
+    @apply text-3xl font-black uppercase leading-none tracking-wide;
+}
+
+.split_panel .panel-left .heading {
+    @apply border-b-0;
+}
+
+.skill-track {
+    @apply space-y-1 text-sm;
+}
+
+.track {
+    display: block;
+    height: 5px;
+    border-radius: 99px;
+    background: var(--cv-heading);
+    opacity: 0.35;
+}
+
+.harbor {
+    @apply space-y-3 px-6 py-8 text-center;
+}
+
+.harbor .time-row,
+.harbor .body,
+.harbor .heading,
+.harbor .chips {
+    @apply text-left;
+}
+
+.harbor h2 {
+    color: var(--cv-heading);
+}
+
+.chips.filled span {
+    color: #fff;
+    background: var(--cv-accent);
+    border-color: transparent;
+    @apply rounded-full px-3 py-1;
+}
+
+.contact-line {
+    @apply mb-0.5;
 }
 </style>

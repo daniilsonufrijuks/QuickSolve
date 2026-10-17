@@ -866,10 +866,10 @@ test('custom cv templates require hex colors and download a pdf', function () {
     ];
 
     $this->get('/tools/cv-builder')->assertOk()->assertInertia(fn ($page) => $page
-        ->has('cvThemes', 8)
+        ->has('cvThemes', 11)
         ->where('cvThemes.0.id', 'coral'));
 
-    foreach (['coral', 'blush', 'sky', 'mustard', 'ember', 'sage', 'lilac', 'navygold'] as $template) {
+    foreach (['coral', 'blush', 'sky', 'mustard', 'ember', 'sage', 'lilac', 'navygold', 'citrus', 'violet', 'harbor'] as $template) {
         $this->actingAs($pro)->post('/tools/cv-builder/pdf', [
             'template' => $template,
             'full_name' => 'Ada North',

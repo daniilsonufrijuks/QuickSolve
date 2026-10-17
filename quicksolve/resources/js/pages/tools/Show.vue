@@ -58,7 +58,7 @@ defineProps<{
     cvThemes?: Array<{
         id: string;
         name: string;
-        layout: 'sidebar_left' | 'sidebar_right' | 'header_band' | 'stacked' | 'photo_top';
+        layout: 'sidebar_left' | 'sidebar_right' | 'header_band' | 'stacked' | 'photo_top' | 'corner_frame' | 'split_panel' | 'centered_portrait';
         paper: string;
         ink: string;
         muted: string;

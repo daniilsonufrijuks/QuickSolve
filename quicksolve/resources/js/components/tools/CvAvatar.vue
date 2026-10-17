@@ -3,7 +3,7 @@ withDefaults(
     defineProps<{
         src?: string;
         initials: string;
-        size?: 'sm' | 'md' | 'lg';
+        size?: 'sm' | 'md' | 'lg' | 'xl';
         shape?: 'circle' | 'rounded';
     }>(),
     { src: '', size: 'md', shape: 'circle' },
@@ -40,6 +40,10 @@ withDefaults(
     @apply h-24 w-24;
 }
 
+.xl {
+    @apply h-32 w-32;
+}
+
 .mark {
     @apply inline-flex items-center justify-center bg-slate-400 text-sm font-semibold tracking-wide text-white;
 }
@@ -50,5 +54,9 @@ withDefaults(
 
 .mark.lg {
     @apply text-xl;
+}
+
+.mark.xl {
+    @apply text-2xl;
 }
 </style>

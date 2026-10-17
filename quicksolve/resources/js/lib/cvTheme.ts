@@ -1,7 +1,7 @@
 export type CvTheme = {
     id: string;
     name: string;
-    layout: 'sidebar_left' | 'sidebar_right' | 'header_band' | 'stacked' | 'photo_top';
+    layout: 'sidebar_left' | 'sidebar_right' | 'header_band' | 'stacked' | 'photo_top' | 'corner_frame' | 'split_panel' | 'centered_portrait';
     paper: string;
     ink: string;
     muted: string;
@@ -19,7 +19,7 @@ export type CvTheme = {
 const STORAGE_KEY = 'quicksolve.cv.custom-themes';
 const MAX_SAVED = 12;
 
-const LAYOUTS: CvTheme['layout'][] = ['sidebar_left', 'sidebar_right', 'header_band', 'stacked', 'photo_top'];
+const LAYOUTS: CvTheme['layout'][] = ['sidebar_left', 'sidebar_right', 'header_band', 'stacked', 'photo_top', 'corner_frame', 'split_panel', 'centered_portrait'];
 const TYPES: CvTheme['type'][] = ['sans', 'serif'];
 const NAME_SIZES: CvTheme['name_size'][] = ['md', 'lg', 'xl'];
 const PHOTOS: CvTheme['photo'][] = ['circle', 'rounded', 'hidden'];

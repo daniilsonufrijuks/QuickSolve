@@ -34,7 +34,7 @@ class CvThemeCatalog
     /**
      * @var list<string>
      */
-    public const LAYOUTS = ['sidebar_left', 'sidebar_right', 'header_band', 'stacked', 'photo_top'];
+    public const LAYOUTS = ['sidebar_left', 'sidebar_right', 'header_band', 'stacked', 'photo_top', 'corner_frame', 'split_panel', 'centered_portrait'];
 
     /**
      * @var list<string>
@@ -93,6 +93,9 @@ class CvThemeCatalog
             self::theme('sage', 'Sage column', 'sidebar_right', '#f7f6f1', '#2f3a2e', '#6d7a68', '#6b7f5a', '#6b7f5a', '#f4f6ef', '#4f6142', 'sans', 'lg', 'circle', 'left', 'chips'),
             self::theme('lilac', 'Lilac frame', 'photo_top', '#f7f4fb', '#3d3354', '#7d7394', '#7c6bb0', '#7c6bb0', '#f7f4fb', '#5e4f8a', 'sans', 'lg', 'rounded', 'left', 'chips'),
             self::theme('navygold', 'Navy gold', 'sidebar_left', '#fbf8f1', '#1b365d', '#6b7280', '#c9a227', '#1b365d', '#f7f1de', '#1b365d', 'serif', 'lg', 'circle', 'left', 'chips'),
+            self::theme('citrus', 'Citrus frame', 'corner_frame', '#ffffff', '#1f2937', '#6b7280', '#f08a3a', '#1f6a70', '#ecfdf5', '#111827', 'sans', 'xl', 'rounded', 'left', 'list'),
+            self::theme('violet', 'Violet split', 'split_panel', '#e3ddf5', '#3d2b6b', '#6d5b9a', '#5a4d8c', '#5a4d8c', '#f4f0fb', '#3d2b6b', 'sans', 'xl', 'circle', 'left', 'list'),
+            self::theme('harbor', 'Harbor portrait', 'centered_portrait', '#ffffff', '#1f2937', '#64748b', '#1d4e89', '#1d4e89', '#ffffff', '#1d4e89', 'sans', 'lg', 'circle', 'center', 'chips'),
         ];
     }
 

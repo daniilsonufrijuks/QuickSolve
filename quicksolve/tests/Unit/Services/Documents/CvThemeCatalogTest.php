@@ -53,3 +53,9 @@ test('custom cv themes drop css that is not a hex color', function () {
 test('classic layouts do not resolve a color theme', function () {
     expect(CvThemeCatalog::resolve('atlantic', null))->toBeNull();
 });
+
+test('screenshot color layouts keep their structure', function () {
+    expect(CvThemeCatalog::resolve('citrus', null)['layout'])->toBe('corner_frame')
+        ->and(CvThemeCatalog::resolve('violet', null)['layout'])->toBe('split_panel')
+        ->and(CvThemeCatalog::resolve('harbor', null)['layout'])->toBe('centered_portrait');
+});

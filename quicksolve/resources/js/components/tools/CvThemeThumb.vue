@@ -249,6 +249,149 @@ const style = computed(() => themeVars(theme.value));
     left: 12px;
 }
 
+.corner_frame .s {
+    top: 0;
+    left: 0;
+    border-top: 22px solid var(--cv-accent);
+    border-right: 28px solid transparent;
+    width: 0;
+    height: 0;
+}
+
+.corner_frame .h {
+    top: 0;
+    right: 0;
+    left: auto;
+    border-top: 22px solid var(--cv-accent);
+    border-left: 28px solid transparent;
+    width: 0;
+    height: 0;
+    background: transparent;
+}
+
+.corner_frame .p {
+    top: 14px;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+}
+
+.corner_frame .l {
+    top: 18px;
+    right: 38px;
+    left: 14px;
+    height: 7px;
+    background: var(--cv-heading);
+}
+
+.corner_frame .l2 {
+    top: 42px;
+    right: 14px;
+    left: 14px;
+}
+
+.corner_frame .l3 {
+    bottom: 0;
+    left: 0;
+    top: auto;
+    width: 0;
+    height: 0;
+    border-bottom: 20px solid var(--cv-sidebar);
+    border-right: 26px solid transparent;
+    background: transparent;
+}
+
+.split_panel .s {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 58%;
+    background: var(--cv-sidebar);
+}
+
+.split_panel .p {
+    top: 28px;
+    left: 10px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+}
+
+.split_panel .h {
+    top: 10px;
+    left: 8px;
+    right: auto;
+    width: 28%;
+    height: 10px;
+}
+
+.split_panel .l {
+    top: 16px;
+    right: 10px;
+    left: 48%;
+    background: var(--cv-sidebar-ink);
+    opacity: 0.5;
+}
+
+.split_panel .l2 {
+    top: 36px;
+    right: 10px;
+    left: 48%;
+    background: var(--cv-sidebar-ink);
+    opacity: 0.5;
+}
+
+.split_panel .l3 {
+    top: 56px;
+    right: 18px;
+    left: 48%;
+    background: var(--cv-sidebar-ink);
+    opacity: 0.5;
+}
+
+.centered_portrait .p {
+    top: 8px;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin-left: -10px;
+    border-radius: 999px;
+}
+
+.centered_portrait .h {
+    top: 34px;
+    right: 22px;
+    left: 22px;
+    height: 7px;
+}
+
+.centered_portrait .s {
+    top: 46px;
+    right: 30%;
+    left: 30%;
+    height: 2px;
+    background: var(--cv-accent);
+}
+
+.centered_portrait .l {
+    top: 56px;
+    right: 12px;
+    left: 12px;
+}
+
+.centered_portrait .l2 {
+    top: 68px;
+    right: 16px;
+    left: 16px;
+}
+
+.centered_portrait .l3 {
+    top: 78px;
+    right: 22px;
+    left: 22px;
+}
+
 .name {
     @apply mt-1.5 block text-xs font-medium text-slate-700 dark:text-slate-200;
 }

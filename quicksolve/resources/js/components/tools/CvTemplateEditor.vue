@@ -32,6 +32,9 @@ const emit = defineEmits<{
                 <option value="sidebar_right">Photo column on the right</option>
                 <option value="header_band">Color band at the top</option>
                 <option value="photo_top">Photo beside the name</option>
+                <option value="corner_frame">Corner color frame</option>
+                <option value="split_panel">Equal color split</option>
+                <option value="centered_portrait">Centered photo</option>
                 <option value="stacked">Centered single column</option>
             </select>
         </FormField>
