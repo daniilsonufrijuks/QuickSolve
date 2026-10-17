@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Services\Billing\PlanResolver;
+use App\Services\Documents\CvThemeCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,10 +29,7 @@ class FetchJsonResumeRequest extends FormRequest
     {
         return [
             'username' => ['required', 'string', 'max:39', 'regex:/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/'],
-            'template' => ['nullable', Rule::in([
-                'classic', 'modern', 'compact', 'executive', 'timeline', 'creative', 'split', 'banner', 'mosaic',
-                'atlantic', 'portrait', 'mono', 'academic', 'sand', 'rose', 'slate', 'forest',
-            ])],
+            'template' => ['nullable', Rule::in(CvThemeCatalog::ids())],
         ];
     }
 }

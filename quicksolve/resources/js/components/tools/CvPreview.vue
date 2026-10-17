@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import CvAvatar from '@/components/tools/CvAvatar.vue';
+import CvThemedPreview from '@/components/tools/CvThemedPreview.vue';
+import type { CvTheme } from '@/lib/cvTheme';
 
 export type CvExperience = { role: string; company: string; dates: string; details: string };
 export type CvEducation = { school: string; credential: string; dates: string };
@@ -18,9 +20,10 @@ export type CvDraft = {
     skills: string[];
     experience: CvExperience[];
     education: CvEducation[];
+    theme?: CvTheme | null;
 };
 
-const props = defineProps<{ cv: CvDraft }>();
+const props = defineProps<{ cv: CvDraft; theme?: CvTheme | null }>();
 
 const contactLine = computed(() => [props.cv.email, props.cv.phone, props.cv.location, props.cv.website].filter(Boolean).join(' · '));
 const contactLines = computed(() => [props.cv.email, props.cv.phone, props.cv.location, props.cv.website].filter(Boolean));
@@ -38,7 +41,8 @@ const isSidebar = computed(() => ['atlantic', 'rose', 'forest'].includes(props.c
 </script>
 
 <template>
-    <section class="preview" :class="cv.template" aria-label="CV preview">
+    <CvThemedPreview v-if="theme" :cv="cv" :theme="theme" />
+    <section v-else class="preview" :class="cv.template" aria-label="CV preview">
         <div v-if="cv.template === 'modern'" class="modern-grid">
             <aside class="side">
                 <CvAvatar :src="cv.photo" :initials="initials" />

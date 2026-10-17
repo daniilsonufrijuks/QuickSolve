@@ -11,6 +11,7 @@ use App\Queries\ToolCatalog;
 use App\Services\Analytics\UsageRecorder;
 use App\Services\Billing\PlanResolver;
 use App\Services\Billing\SubscriptionSyncer;
+use App\Services\Documents\CvThemeCatalog;
 use App\Support\Seo;
 use Illuminate\Http\Request;
 use Inertia\Response;
@@ -88,6 +89,7 @@ class ToolController extends Controller
                 : null,
             'trial' => $trial,
             'demoMode' => ! is_string(config('quicksolve.ai.api_key')) || config('quicksolve.ai.api_key') === '',
+            'cvThemes' => $tool->slug === 'cv-builder' ? CvThemeCatalog::themed() : null,
             'premium' => $premium,
             'plan' => $plans->key($request->user()),
             'business' => $plans->isBusiness($request->user()),

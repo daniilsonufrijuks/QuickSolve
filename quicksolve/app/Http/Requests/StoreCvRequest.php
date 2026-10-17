@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Services\Billing\PlanResolver;
+use App\Services\Documents\CvThemeCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -27,25 +28,8 @@ class StoreCvRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'template' => ['required', Rule::in([
-                'classic',
-                'modern',
-                'compact',
-                'executive',
-                'timeline',
-                'creative',
-                'split',
-                'banner',
-                'mosaic',
-                'atlantic',
-                'portrait',
-                'mono',
-                'academic',
-                'sand',
-                'rose',
-                'slate',
-                'forest',
-            ])],
+            'template' => ['required', Rule::in(CvThemeCatalog::ids())],
+            ...CvThemeCatalog::rules(),
             'full_name' => ['required', 'string', 'max:160'],
             'photo' => [
                 'nullable',

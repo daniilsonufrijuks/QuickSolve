@@ -4,19 +4,28 @@ withDefaults(
         src?: string;
         initials: string;
         size?: 'sm' | 'md' | 'lg';
+        shape?: 'circle' | 'rounded';
     }>(),
-    { src: '', size: 'md' },
+    { src: '', size: 'md', shape: 'circle' },
 );
 </script>
 
 <template>
-    <img v-if="src" :src="src" alt="" class="pic" :class="size" />
-    <span v-else class="pic mark" :class="size">{{ initials }}</span>
+    <img v-if="src" :src="src" alt="" class="pic" :class="[size, shape]" />
+    <span v-else class="pic mark" :class="[size, shape]">{{ initials }}</span>
 </template>
 
 <style scoped>
 .pic {
-    @apply shrink-0 rounded-full object-cover;
+    @apply shrink-0 object-cover;
+}
+
+.circle {
+    @apply rounded-full;
+}
+
+.rounded {
+    @apply rounded-xl;
 }
 
 .sm {

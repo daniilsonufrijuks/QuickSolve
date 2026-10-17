@@ -829,6 +829,61 @@ test('cv pdf downloads during trial uses and lock after five visits', function (
     $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'photo' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='])->assertSessionHasErrors('photo');
 });
 
+test('custom cv templates require hex colors and download a pdf', function () {
+    config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
+    $this->seed();
+
+    $pro = User::factory()->create();
+    $pro->subscriptions()->create([
+        'type' => 'default',
+        'stripe_id' => 'sub_cv_theme',
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_pro',
+        'quantity' => 1,
+    ]);
+
+    $theme = [
+        'name' => 'Studio coral',
+        'layout' => 'sidebar_left',
+        'paper' => '#fff8f4',
+        'ink' => '#3f2e2a',
+        'muted' => '#8d6e68',
+        'accent' => '#e07a5f',
+        'sidebar' => '#e07a5f',
+        'sidebar_ink' => '#fff7f3',
+        'heading' => '#c45c40',
+        'type' => 'sans',
+        'name_size' => 'lg',
+        'photo' => 'circle',
+        'header_align' => 'left',
+        'skills' => 'chips',
+    ];
+    $payload = [
+        'template' => 'custom',
+        'full_name' => 'Ada North',
+        'headline' => 'Designer',
+        'theme' => $theme,
+    ];
+
+    $this->get('/tools/cv-builder')->assertOk()->assertInertia(fn ($page) => $page
+        ->has('cvThemes', 8)
+        ->where('cvThemes.0.id', 'coral'));
+
+    foreach (['coral', 'blush', 'sky', 'mustard', 'ember', 'sage', 'lilac', 'navygold'] as $template) {
+        $this->actingAs($pro)->post('/tools/cv-builder/pdf', [
+            'template' => $template,
+            'full_name' => 'Ada North',
+        ])->assertOk();
+    }
+
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', $payload)->assertOk();
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [...$payload, 'theme' => null])->assertSessionHasErrors('theme');
+    $this->actingAs($pro)->post('/tools/cv-builder/pdf', [
+        ...$payload,
+        'theme' => [...$theme, 'accent' => 'red;background:url(javascript:alert(1))'],
+    ])->assertSessionHasErrors('theme.accent');
+});
+
 test('json resume import maps overlapping fields and skips unmapped sections', function () {
     config(['quicksolve.plans.pro.stripe_price_id' => 'price_pro']);
     $this->seed();

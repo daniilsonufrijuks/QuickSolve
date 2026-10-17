@@ -3,14 +3,29 @@ import ErrorState from '@/components/marketing/ErrorState.vue';
 import FormField from '@/components/marketing/FormField.vue';
 import CvPreview from '@/components/tools/CvPreview.vue';
 import type { CvDraft, CvEducation, CvExperience } from '@/components/tools/CvPreview.vue';
+import CvTemplateEditor from '@/components/tools/CvTemplateEditor.vue';
+import CvThemeThumb from '@/components/tools/CvThemeThumb.vue';
 import { Button } from '@/components/ui/button';
 import { postJson } from '@/lib/api';
-import { reactive, ref } from 'vue';
+import {
+    blankCustomTheme,
+    cloneTheme,
+    deleteCustomTheme,
+    findTheme,
+    listCustomThemes,
+    upsertCustomTheme,
+    type CvTheme,
+} from '@/lib/cvTheme';
+import { computed, onMounted, reactive, ref } from 'vue';
 
-const props = defineProps<{
-    usage: { used: number; limit: number; remaining: number; window: string; plan: string } | null;
-    demoMode: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        usage: { used: number; limit: number; remaining: number; window: string; plan: string } | null;
+        demoMode: boolean;
+        themes?: CvTheme[];
+    }>(),
+    { themes: () => [] },
+);
 
 const templates = [
     { id: 'classic', name: 'Classic' },
@@ -34,6 +49,7 @@ const templates = [
 
 const cv = reactive<CvDraft>({
     template: 'atlantic',
+    theme: null,
     full_name: 'Ada North',
     headline: 'Product designer',
     email: 'ada@example.com',
@@ -56,7 +72,93 @@ const cv = reactive<CvDraft>({
 
 const error = ref('');
 const downloading = ref(false);
-const panel = ref<'edit' | 'json' | 'chat'>('edit');
+const panel = ref<'edit' | 'json' | 'chat' | 'design'>('edit');
+const customThemes = ref<CvTheme[]>([]);
+const draftTheme = ref<CvTheme>(blankCustomTheme(props.themes[0]));
+const themeError = ref('');
+
+const previewTheme = computed(() => {
+    if (panel.value === 'design') {
+        return cloneTheme(draftTheme.value);
+    }
+
+    if (cv.template === 'custom') {
+        return cloneTheme(cv.theme);
+    }
+
+    return findTheme(props.themes, cv.template);
+});
+
+const selectedThemeId = computed(() => {
+    if (cv.template === 'custom') {
+        return cv.theme?.id ?? 'custom';
+    }
+
+    return cv.template;
+});
+
+onMounted(() => {
+    customThemes.value = listCustomThemes();
+});
+
+function selectClassic(id: string) {
+    cv.template = id;
+    cv.theme = null;
+}
+
+function selectColorLayout(theme: CvTheme) {
+    cv.template = theme.id;
+    cv.theme = null;
+}
+
+function selectCustom(theme: CvTheme) {
+    cv.template = 'custom';
+    cv.theme = cloneTheme(theme);
+}
+
+function openEditor(from?: CvTheme | null) {
+    const source = from ?? previewTheme.value ?? props.themes[0];
+    draftTheme.value = blankCustomTheme(source);
+    if (from?.id.startsWith('c-')) {
+        draftTheme.value = cloneTheme(from);
+    }
+    themeError.value = '';
+    panel.value = 'design';
+}
+
+function applyDraftTheme() {
+    cv.template = 'custom';
+    cv.theme = cloneTheme(draftTheme.value);
+    panel.value = 'edit';
+}
+
+function saveDraftTheme() {
+    const result = upsertCustomTheme(draftTheme.value);
+    themeError.value = result.error;
+
+    if (result.error) {
+        return;
+    }
+
+    draftTheme.value = cloneTheme(result.theme);
+    customThemes.value = listCustomThemes();
+    cv.template = 'custom';
+    cv.theme = cloneTheme(result.theme);
+    panel.value = 'edit';
+}
+
+function removeDraftTheme() {
+    if (!draftTheme.value.id.startsWith('c-')) {
+        return;
+    }
+
+    customThemes.value = deleteCustomTheme(draftTheme.value.id);
+    if (cv.theme?.id === draftTheme.value.id) {
+        selectColorLayout(props.themes[0]);
+    }
+    draftTheme.value = blankCustomTheme(props.themes[0]);
+    panel.value = 'edit';
+}
 const jsonPaste = ref('');
 const registryUser = ref('');
 const jsonBusy = ref('');
@@ -213,7 +315,7 @@ async function downloadPdf() {
 }
 
 function cvPayload() {
-    return {
+    const payload: Record<string, unknown> = {
         template: cv.template,
         full_name: cv.full_name,
         headline: cv.headline,
@@ -226,6 +328,12 @@ function cvPayload() {
         experience: cv.experience.filter((job) => job.role.trim() !== ''),
         education: cv.education.filter((item) => item.school.trim() !== ''),
     };
+
+    if (cv.template === 'custom' && cv.theme) {
+        payload.theme = cloneTheme(cv.theme);
+    }
+
+    return payload;
 }
 
 function applyMapped(mapped: Partial<CvDraft>) {
@@ -443,18 +551,20 @@ async function sendChat() {
             <Button type="button" :variant="panel === 'edit' ? 'default' : 'outline'" @click="panel = 'edit'">CV</Button>
             <Button type="button" :variant="panel === 'json' ? 'default' : 'outline'" @click="panel = 'json'">JSON Resume</Button>
             <Button type="button" :variant="panel === 'chat' ? 'default' : 'outline'" @click="panel = 'chat'">DeepSeek chat</Button>
+            <Button type="button" :variant="panel === 'design' ? 'default' : 'outline'" @click="openEditor(previewTheme)">Template editor</Button>
         </div>
         <fieldset v-if="panel !== 'json'" class="gallery-wrap">
             <legend class="label">Template</legend>
-            <div class="gallery">
+            <p v-if="panel !== 'design'" class="group-label">Classic layouts</p>
+            <div v-if="panel !== 'design'" class="gallery">
                 <button
                     v-for="item in templates"
                     :key="item.id"
                     type="button"
                     class="thumb"
-                    :class="{ on: cv.template === item.id }"
-                    :aria-pressed="cv.template === item.id"
-                    @click="cv.template = item.id"
+                    :class="{ on: selectedThemeId === item.id }"
+                    :aria-pressed="selectedThemeId === item.id"
+                    @click="selectClassic(item.id)"
                 >
                     <span class="shot" :class="item.id" aria-hidden="true">
                         <span class="s" />
@@ -467,6 +577,38 @@ async function sendChat() {
                     <span class="thumb-name">{{ item.name }}</span>
                 </button>
             </div>
+            <p class="group-label">Color layouts</p>
+            <div class="gallery">
+                <button
+                    v-for="item in themes"
+                    :key="item.id"
+                    type="button"
+                    class="thumb"
+                    :class="{ on: selectedThemeId === item.id }"
+                    :aria-pressed="selectedThemeId === item.id"
+                    @click="panel === 'design' ? (draftTheme = blankCustomTheme(item)) : selectColorLayout(item)"
+                >
+                    <CvThemeThumb :theme="item" />
+                </button>
+            </div>
+            <p v-if="customThemes.length" class="group-label">My templates</p>
+            <div v-if="customThemes.length" class="gallery">
+                <button
+                    v-for="item in customThemes"
+                    :key="item.id"
+                    type="button"
+                    class="thumb"
+                    :class="{ on: selectedThemeId === item.id }"
+                    :aria-pressed="selectedThemeId === item.id"
+                    @click="panel === 'design' ? (draftTheme = cloneTheme(item)) : selectCustom(item)"
+                >
+                    <CvThemeThumb :theme="item" />
+                </button>
+            </div>
+            <button v-if="panel !== 'design'" type="button" class="thumb create" @click="openEditor(previewTheme)">
+                <span class="create-mark">+</span>
+                <span class="thumb-name">Create template</span>
+            </button>
         </fieldset>
         <form v-if="panel === 'edit'" class="panel" @submit.prevent="downloadPdf">
             <FormField label="Full name"><input v-model="cv.full_name" class="field" /></FormField>
@@ -543,6 +685,16 @@ async function sendChat() {
             </div>
             <p v-if="error && panel === 'json'" class="error">{{ error }}</p>
         </div>
+        <div v-else-if="panel === 'design'" class="panel-plain">
+            <p v-if="themeError" class="error">{{ themeError }}</p>
+            <CvTemplateEditor
+                v-model:theme="draftTheme"
+                :can-delete="draftTheme.id.startsWith('c-')"
+                @save="saveDraftTheme"
+                @apply="applyDraftTheme"
+                @remove="removeDraftTheme"
+            />
+        </div>
         <div v-else class="panel">
             <p v-if="demoMode" class="demo">
                 Demo mode is on because no DeepSeek API key is configured. Replies are assembled from the form and labeled as a demo.
@@ -567,7 +719,7 @@ async function sendChat() {
             <p v-if="suggestion?.mode === 'demo'" class="demo">{{ suggestion.notice }}</p>
             <p v-else-if="suggestion?.mode === 'live'" class="ok">Live DeepSeek response.</p>
         </div>
-        <CvPreview :cv="cv" />
+        <CvPreview :cv="cv" :theme="previewTheme" />
     </div>
 </template>
 
@@ -578,7 +730,23 @@ async function sendChat() {
 
 .toolbar,
 .gallery-wrap {
-    @apply min-w-0 lg:col-span-2;
+    @apply min-w-0 space-y-3 lg:col-span-2;
+}
+
+.group-label {
+    @apply mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500;
+}
+
+.create {
+    @apply mt-2;
+}
+
+.create-mark {
+    @apply flex h-[88px] items-center justify-center rounded-lg border border-dashed text-2xl text-slate-400;
+}
+
+.panel-plain {
+    @apply min-w-0;
 }
 
 .toolbar {

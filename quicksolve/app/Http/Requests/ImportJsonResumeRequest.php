@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Services\Billing\PlanResolver;
+use App\Services\Documents\CvThemeCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -27,10 +28,7 @@ class ImportJsonResumeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'template' => ['nullable', Rule::in([
-                'classic', 'modern', 'compact', 'executive', 'timeline', 'creative', 'split', 'banner', 'mosaic',
-                'atlantic', 'portrait', 'mono', 'academic', 'sand', 'rose', 'slate', 'forest',
-            ])],
+            'template' => ['nullable', Rule::in(CvThemeCatalog::ids())],
             'resume' => ['required', 'array'],
             'resume.basics' => ['nullable', 'array'],
             'resume.work' => ['nullable', 'array', 'max:12'],

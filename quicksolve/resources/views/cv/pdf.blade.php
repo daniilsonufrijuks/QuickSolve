@@ -77,13 +77,15 @@
         .slate-grid .right { margin-left: 38%; }
     </style>
 </head>
-<body class="{{ $cv['template'] }}">
+<body class="{{ $cv['template'] }}{{ ! empty($theme) ? ' themed-body' : '' }}">
 @php
     $contacts = collect([$cv['email'] ?? null, $cv['phone'] ?? null, $cv['location'] ?? null, $cv['website'] ?? null])->filter();
     $contact = $contacts->implode(' · ');
 @endphp
 
-@if ($cv['template'] === 'modern')
+@if (! empty($theme))
+    @include('cv.partials.themed')
+@elseif ($cv['template'] === 'modern')
     <div class="sidebar">
         @include('cv.partials.avatar', ['size' => 78])
         <h1>{{ $cv['full_name'] }}</h1>
