@@ -2,12 +2,22 @@
 import MainNavigation from '@/components/marketing/MainNavigation.vue';
 import { Button } from '@/components/ui/button';
 import type { SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { Menu, X } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { onUnmounted, ref } from 'vue';
 
 const open = ref(false);
 const page = usePage<SharedData>();
+
+const stopNavigate = router.on('navigate', () => {
+    open.value = false;
+});
+
+onUnmounted(() => {
+    if (typeof stopNavigate === 'function') {
+        stopNavigate();
+    }
+});
 </script>
 
 <template>
@@ -36,7 +46,7 @@ const page = usePage<SharedData>();
             </button>
         </div>
         <div v-if="open" class="space-y-4 border-t border-slate-200 px-4 py-4 md:hidden dark:border-slate-800">
-            <MainNavigation />
+            <MainNavigation layout="stack" />
             <div class="flex gap-2">
                 <Button v-if="page.props.auth.user" as-child>
                     <Link href="/dashboard">Dashboard</Link>
@@ -56,7 +66,7 @@ const page = usePage<SharedData>();
 
 <style scoped>
 .s1665r3c {
-    @apply border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950;
+    @apply sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95;
 }
 
 .svt8r08 {

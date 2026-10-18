@@ -614,6 +614,8 @@ test('the new catalog tools and templates are published', function () {
         'unit-converter',
         'random-number-generator',
         'http-status-code-lookup',
+        'html-validator',
+        'css-validator',
     ] as $slug) {
         $this->get('/tools/'.$slug)->assertOk()->assertInertia(fn ($page) => $page->where('tool.slug', $slug)->where('locked', false));
     }
@@ -1361,6 +1363,128 @@ test('signed-in dashboard pages ask crawlers not to index', function () {
     $this->actingAs($user)->get('/dashboard')
         ->assertOk()
         ->assertSee('noindex,nofollow', false);
+});
+
+test('the tools catalog is grouped by category', function () {
+    $this->seed();
+
+    $this->get('/tools')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('sections')
+            ->where('sections.0.slug', 'calculators')
+            ->where('toolMenu', function ($menu) {
+                $developer = collect($menu)->firstWhere('slug', 'developer-tools');
+
+                expect($developer)->not->toBeNull();
+
+                $slugs = collect($developer['tools'])->pluck('slug');
+
+                return $slugs->contains('html-validator')
+                    && $slugs->contains('css-validator')
+                    && $slugs->contains('regex-tester');
+            }));
+
+    $this->get('/tools?category=developer-tools')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('filters.category', 'developer-tools')
+            ->has('sections', 1)
+            ->where('sections.0.slug', 'developer-tools'));
+});
+
+test('the html validator reports w3c messages and ignores the fragment wrapper', function () {
+    Http::preventStrayRequests();
+    Http::fake([
+        'validator.w3.org/*' => Http::response([
+            'messages' => [
+                [
+                    'type' => 'error',
+                    'message' => 'Wrapper problem',
+                    'lastLine' => 2,
+                    'lastColumn' => 1,
+                ],
+                [
+                    'type' => 'error',
+                    'message' => 'Element <code>bogus</code> not allowed.',
+                    'lastLine' => 8,
+                    'lastColumn' => 2,
+                    'extract' => '<bogus>',
+                ],
+                [
+                    'type' => 'info',
+                    'subType' => 'warning',
+                    'message' => 'Consider adding a heading.',
+                    'lastLine' => 8,
+                    'lastColumn' => 8,
+                ],
+            ],
+        ]),
+    ]);
+
+    $this->postJson('/tools/html-validator/check', [
+        'source' => '<bogus></bogus>',
+        'mode' => 'fragment',
+    ])->assertOk()
+        ->assertJsonPath('data.valid', false)
+        ->assertJsonPath('data.checked_by', 'W3C Nu Html Checker')
+        ->assertJsonCount(2, 'data.messages')
+        ->assertJsonPath('data.messages.0.severity', 'error')
+        ->assertJsonPath('data.messages.0.line', 1)
+        ->assertJsonPath('data.messages.0.message', 'Element bogus not allowed.')
+        ->assertJsonPath('data.messages.1.severity', 'warning');
+});
+
+test('the css validator reports w3c errors and warnings', function () {
+    Http::preventStrayRequests();
+    Http::fake([
+        'jigsaw.w3.org/*' => Http::response([
+            'cssvalidation' => [
+                'validity' => false,
+                'errors' => [
+                    'line' => 2,
+                    'message' => 'Property <code>foo</code> does not exist',
+                ],
+                'warnings' => [
+                    ['line' => 1, 'message' => 'Same color for background and text'],
+                ],
+            ],
+        ]),
+    ]);
+
+    $this->postJson('/tools/css-validator/check', [
+        'source' => 'body { foo: 1; }',
+        'profile' => 'css3svg',
+    ])->assertOk()
+        ->assertJsonPath('data.valid', false)
+        ->assertJsonPath('data.checked_by', 'W3C CSS Validator')
+        ->assertJsonPath('data.messages.0.severity', 'error')
+        ->assertJsonPath('data.messages.0.line', 2)
+        ->assertJsonPath('data.messages.0.message', 'Property foo does not exist')
+        ->assertJsonPath('data.messages.1.severity', 'warning');
+});
+
+test('markup checks fail closed when w3c is unavailable', function () {
+    Http::preventStrayRequests();
+    Http::fake([
+        'validator.w3.org/*' => Http::response('unavailable', 503),
+        'jigsaw.w3.org/*' => Http::response('<html></html>', 200),
+    ]);
+
+    $this->postJson('/tools/html-validator/check', [
+        'source' => '<p>Hi</p>',
+        'mode' => 'document',
+    ])->assertStatus(503);
+
+    $this->postJson('/tools/css-validator/check', [
+        'source' => 'body { color: red; }',
+    ])->assertStatus(503);
+});
+
+test('markup source is required', function () {
+    $this->postJson('/tools/html-validator/check', [
+        'source' => '',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['source']);
 });
 
 function stripeWebhook(object $testCase, array $payload)

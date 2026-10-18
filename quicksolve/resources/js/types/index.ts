@@ -16,12 +16,26 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface ToolMenuTool {
+    name: string;
+    slug: string;
+    access_type: string;
+}
+
+export interface ToolMenuCategory {
+    slug: string;
+    name: string;
+    description: string;
+    tools: ToolMenuTool[];
+}
+
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
     appUrl?: string;
     billingConfigured?: boolean;
+    toolMenu?: ToolMenuCategory[];
     flash?: {
         success?: string | null;
         error?: string | null;

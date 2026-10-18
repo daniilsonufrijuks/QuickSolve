@@ -524,6 +524,40 @@ class DatabaseSeeder extends Seeder
                 ],
             ],
             [
+                'slug' => 'html-validator',
+                'category' => 'developer-tools',
+                'name' => 'HTML Validator',
+                'description' => 'Check HTML in a textarea with the W3C Nu Html Checker and see errors and warnings by line.',
+                'icon' => 'code',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 21,
+                'long_description' => 'Paste a full document or an HTML fragment. QuickSolve sends that source to the W3C Nu Html Checker and shows the messages it returns. The source is not saved. A fragment is wrapped in a minimal document so the checker can read it, and line numbers still refer to what you pasted. This does not publish the page or change your site.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Is this the W3C checker?', 'a' => 'Yes. Results come from the Nu Html Checker at validator.w3.org. QuickSolve does not keep a separate ruleset.'],
+                        ['q' => 'Is my HTML stored?', 'a' => 'No. It is forwarded for the check and then discarded. Do not paste passwords or private customer data.'],
+                    ],
+                ],
+            ],
+            [
+                'slug' => 'css-validator',
+                'category' => 'developer-tools',
+                'name' => 'CSS Validator',
+                'description' => 'Check CSS in a textarea with the W3C CSS Validator and review errors and warnings by line.',
+                'icon' => 'palette',
+                'access_type' => AccessType::Free,
+                'is_featured' => false,
+                'popularity' => 20,
+                'long_description' => 'Paste a style sheet and choose a profile. The default is CSS Level 3 plus SVG, the same default as the W3C CSS Validator. QuickSolve sends the text to jigsaw.w3.org and shows the errors and warnings it returns. The style sheet is not saved. This does not upload the file to your site.',
+                'metadata' => [
+                    'faqs' => [
+                        ['q' => 'Which CSS profile is used?', 'a' => 'CSS Level 3 + SVG, unless you pick CSS Level 3, CSS 2.1, or SVG.'],
+                        ['q' => 'Is my CSS stored?', 'a' => 'No. It is forwarded to the W3C CSS Validator for the check and then discarded.'],
+                    ],
+                ],
+            ],
+            [
                 'slug' => 'unit-converter',
                 'category' => 'converters',
                 'name' => 'Unit Converter',

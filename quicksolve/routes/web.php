@@ -12,6 +12,7 @@ use App\Http\Controllers\FreelanceRateReportController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\JsonResumeController;
+use App\Http\Controllers\MarkupCheckController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PaymentLandingController;
 use App\Http\Controllers\QuoteController;
@@ -67,6 +68,12 @@ Route::post('/tools/payment-landing-date/calculate', PaymentLandingController::c
 Route::post('/tools/scope-change-note/pdf', [ScopeChangeController::class, 'pdf'])
     ->middleware('throttle:pdf')
     ->name('tools.scope-change-pdf');
+Route::post('/tools/html-validator/check', [MarkupCheckController::class, 'html'])
+    ->middleware('throttle:markup')
+    ->name('tools.html-check');
+Route::post('/tools/css-validator/check', [MarkupCheckController::class, 'css'])
+    ->middleware('throttle:markup')
+    ->name('tools.css-check');
 
 Route::get('/sitemap.xml', [SitemapController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SitemapController::class, 'robots'])->name('robots');

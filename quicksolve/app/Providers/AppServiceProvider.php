@@ -36,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
         });
 
+        RateLimiter::for('markup', function (Request $request) {
+            return Limit::perMinute(12)->by($request->user()?->id ?: $request->ip());
+        });
+
         $this->hydrateStripePriceIds();
 
         $this->app->booted(function () {

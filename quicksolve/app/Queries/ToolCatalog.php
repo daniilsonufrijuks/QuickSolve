@@ -3,7 +3,9 @@
 namespace App\Queries;
 
 use App\Enums\CategoryType;
+use App\Http\Resources\ToolResource;
 use App\Models\Tool;
+use App\Support\ToolCategoryOrder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -17,6 +19,37 @@ class ToolCatalog
         return $this->query($filters)
             ->paginate(12)
             ->withQueryString();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<array{slug: string, name: string, description: string, tools: mixed}>
+     */
+    public function sections(array $filters): array
+    {
+        return $this->query($filters)
+            ->get()
+            ->groupBy(fn (Tool $tool): int => (int) $tool->category_id)
+            ->map(function ($items): ?array {
+                $first = $items->first();
+
+                if (! $first instanceof Tool || $first->category === null) {
+                    return null;
+                }
+
+                $category = $first->category;
+
+                return [
+                    'slug' => $category->slug,
+                    'name' => $category->name,
+                    'description' => (string) $category->description,
+                    'tools' => ToolResource::collection($items)->resolve(),
+                ];
+            })
+            ->filter(fn (?array $section): bool => $section !== null)
+            ->sortBy(fn (array $section): array => [ToolCategoryOrder::rank($section['slug']), $section['name']])
+            ->values()
+            ->all();
     }
 
     /**

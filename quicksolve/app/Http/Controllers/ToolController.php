@@ -13,6 +13,7 @@ use App\Services\Billing\PlanResolver;
 use App\Services\Billing\SubscriptionSyncer;
 use App\Services\Documents\CvThemeCatalog;
 use App\Support\Seo;
+use App\Support\ToolCategoryOrder;
 use Illuminate\Http\Request;
 use Inertia\Response;
 
@@ -20,8 +21,7 @@ class ToolController extends Controller
 {
     public function index(Request $request, ToolCatalog $catalog): Response
     {
-        $tools = $catalog->paginate($request->only(['q', 'category', 'access', 'sort']));
-
+        $filters = $request->only(['q', 'category', 'access', 'sort']);
         $searching = $request->filled('q');
 
         return Seo::page('tools/Index', [
@@ -31,15 +31,12 @@ class ToolController extends Controller
                 'access' => $request->string('access')->toString(),
                 'sort' => $request->string('sort')->toString() ?: 'popularity',
             ],
-            'categories' => Category::query()->where('type', CategoryType::Tool)->orderBy('name')->get(['id', 'name', 'slug', 'description']),
-            'tools' => [
-                'data' => ToolResource::collection($tools->items())->resolve(),
-                'meta' => [
-                    'current_page' => $tools->currentPage(),
-                    'last_page' => $tools->lastPage(),
-                    'total' => $tools->total(),
-                ],
-            ],
+            'categories' => Category::query()
+                ->where('type', CategoryType::Tool)
+                ->get(['id', 'name', 'slug', 'description'])
+                ->sortBy(fn (Category $category): array => [ToolCategoryOrder::rank($category->slug), $category->name])
+                ->values(),
+            'sections' => $catalog->sections($filters),
         ], 'Free and Pro business tools', 'Browse calculators, invoices, writing tools, and document builders. Guests can start without an account.', '/tools', [
             'robots' => $searching ? 'noindex,follow' : 'index,follow',
         ]);

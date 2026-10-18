@@ -15,6 +15,7 @@ import FreelanceRateCalculator from '@/components/tools/FreelanceRateCalculator.
 import HttpStatusLookup from '@/components/tools/HttpStatusLookup.vue';
 import InvoiceGenerator from '@/components/tools/InvoiceGenerator.vue';
 import JwtDecoder from '@/components/tools/JwtDecoder.vue';
+import MarkupChecker from '@/components/tools/MarkupChecker.vue';
 import MarketplaceFeeCalculator from '@/components/tools/MarketplaceFeeCalculator.vue';
 import PaymentLandingDate from '@/components/tools/PaymentLandingDate.vue';
 import ProfitCalculator from '@/components/tools/ProfitCalculator.vue';
@@ -82,6 +83,10 @@ defineProps<{
                 <Link href="/">Home</Link>
                 <span aria-hidden="true"> / </span>
                 <Link href="/tools">Tools</Link>
+                <template v-if="tool.category?.slug">
+                    <span aria-hidden="true"> / </span>
+                    <Link :href="`/tools?category=${tool.category.slug}`">{{ tool.category.name }}</Link>
+                </template>
                 <span aria-hidden="true"> / </span>
                 <span>{{ tool.name }}</span>
             </nav>
@@ -122,6 +127,8 @@ defineProps<{
                 <BusinessCardMaker v-else-if="tool.slug === 'business-card-maker'" />
                 <RandomNumberGenerator v-else-if="tool.slug === 'random-number-generator'" />
                 <HttpStatusLookup v-else-if="tool.slug === 'http-status-code-lookup'" />
+                <MarkupChecker v-else-if="tool.slug === 'html-validator'" kind="html" />
+                <MarkupChecker v-else-if="tool.slug === 'css-validator'" kind="css" />
                 <CvBuilder v-else-if="tool.slug === 'cv-builder'" :usage="usage" :demo-mode="demoMode" :themes="cvThemes" />
                 <EmailTemplates v-else-if="tool.slug === 'email-templates'" :usage="usage" :demo-mode="demoMode" />
                 <QuoteBuilder v-else-if="tool.slug === 'quote-builder'" :plan="plan" :business="business" />

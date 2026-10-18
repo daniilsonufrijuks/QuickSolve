@@ -7,8 +7,9 @@ import TemplateCard from '@/components/marketing/TemplateCard.vue';
 import ToolCard from '@/components/marketing/ToolCard.vue';
 import { Button } from '@/components/ui/button';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
-import { Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import type { SharedData } from '@/types';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 defineProps<{
     featuredTools: Array<any>;
@@ -19,6 +20,8 @@ defineProps<{
     chatUsage: { used: number; limit: number; remaining: number; window: string; plan: string };
 }>();
 
+const page = usePage<SharedData>();
+const toolMenu = computed(() => page.props.toolMenu ?? []);
 const query = ref('');
 
 function search() {
@@ -59,6 +62,17 @@ const faqs = [
 
         <section class="promo-wrap">
             <HomePromoBanner />
+        </section>
+
+        <section v-if="toolMenu.length" class="s1w0rxx6">
+            <h2 class="sixq2vr">Browse by category</h2>
+            <div class="category-grid">
+                <Link v-for="category in toolMenu" :key="category.slug" :href="`/tools?category=${category.slug}`" class="category-card">
+                    <h3>{{ category.name }}</h3>
+                    <p>{{ category.description }}</p>
+                    <p class="category-count">{{ category.tools.length }} tool{{ category.tools.length === 1 ? '' : 's' }}</p>
+                </Link>
+            </div>
         </section>
 
         <section class="s1w0rxx6">
@@ -275,6 +289,26 @@ const faqs = [
 
 .s1w0rxx6 {
     @apply mx-auto max-w-6xl px-4 py-14;
+}
+
+.category-grid {
+    @apply mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4;
+}
+
+.category-card {
+    @apply flex h-full flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:border-blue-200 dark:border-slate-800 dark:bg-slate-900;
+}
+
+.category-card h3 {
+    @apply font-semibold text-slate-950 dark:text-white;
+}
+
+.category-card p {
+    @apply mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300;
+}
+
+.category-card .category-count {
+    @apply mt-auto pt-3 text-xs font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300;
 }
 
 .sixq2vr {

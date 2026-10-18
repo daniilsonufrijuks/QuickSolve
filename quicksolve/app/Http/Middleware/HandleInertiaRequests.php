@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Queries\ToolMenu;
 use App\Services\Billing\PlanResolver;
 use App\Support\Seo;
 use Closure;
@@ -59,6 +60,7 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'appUrl' => config('app.url'),
             'billingConfigured' => filled(config('cashier.secret')),
+            'toolMenu' => fn () => app(ToolMenu::class)->categories(),
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
