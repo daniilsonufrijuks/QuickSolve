@@ -53,34 +53,19 @@ class W3cMarkupChecker
      */
     public function css(string $source, string $profile = 'css3svg'): ?array
     {
-        $url = self::CSS_URL.'?'.http_build_query([
-            'text' => $source,
-            'output' => 'json',
-            'profile' => $profile,
-            'warning' => '1',
-            'lang' => 'en',
-        ], '', '&', PHP_QUERY_RFC3986);
-
-        if (strlen($url) > 8000) {
-            return [
-                'valid' => false,
-                'checked_by' => 'W3C CSS Validator',
-                'messages' => [[
-                    'severity' => 'error',
-                    'line' => null,
-                    'column' => null,
-                    'message' => 'This style sheet is too long to send to the W3C CSS Validator. Check a smaller section.',
-                    'extract' => null,
-                ]],
-            ];
-        }
-
         try {
             $response = Http::connectTimeout(5)
-                ->timeout(20)
+                ->timeout(30)
                 ->withUserAgent($this->userAgent())
                 ->acceptJson()
-                ->get($url);
+                ->asMultipart()
+                ->post(self::CSS_URL, [
+                    'text' => $source,
+                    'output' => 'json',
+                    'profile' => $profile,
+                    'warning' => '1',
+                    'lang' => 'en',
+                ]);
         } catch (ConnectionException) {
             return null;
         }

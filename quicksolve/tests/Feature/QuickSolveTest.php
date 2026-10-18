@@ -1464,6 +1464,38 @@ test('the css validator reports w3c errors and warnings', function () {
         ->assertJsonPath('data.messages.1.severity', 'warning');
 });
 
+test('a long style sheet is still sent to the w3c css validator', function () {
+    Http::preventStrayRequests();
+    Http::fake([
+        'jigsaw.w3.org/*' => Http::response([
+            'cssvalidation' => [
+                'validity' => true,
+                'errors' => [],
+                'warnings' => [],
+            ],
+        ]),
+    ]);
+
+    $source = str_repeat("/* section */\n.rule { color: #111; }\n", 800);
+
+    $this->postJson('/tools/css-validator/check', [
+        'source' => $source,
+        'profile' => 'css3svg',
+    ])->assertOk()
+        ->assertJsonPath('data.valid', true)
+        ->assertJsonMissing(['message' => 'This style sheet is too long to send to the W3C CSS Validator. Check a smaller section.']);
+
+    Http::assertSent(function ($request) use ($source) {
+        $body = $request->body();
+
+        return $request->method() === 'POST'
+            && str_contains($request->url(), 'jigsaw.w3.org/css-validator/validator')
+            && strlen($body) > strlen($source)
+            && str_contains($body, '/* section */')
+            && str_contains($body, '.rule { color: #111; }');
+    });
+});
+
 test('markup checks fail closed when w3c is unavailable', function () {
     Http::preventStrayRequests();
     Http::fake([
